@@ -59,6 +59,13 @@
     </dependency>
     <dependency>
       <groupId>local.sqldeveloper</groupId>
+      <artifactId>oracle-ide-webupdate</artifactId>
+      <version>local</version>
+      <scope>system</scope>
+      <systemPath>${sqldev.home}/ide/extensions/oracle.ide.webupdate.jar</systemPath>
+    </dependency>
+    <dependency>
+      <groupId>local.sqldeveloper</groupId>
       <artifactId>oracle-sqldeveloper</artifactId>
       <version>local</version>
       <scope>system</scope>
@@ -125,15 +132,18 @@
             </goals>
             <configuration>
               <createDependencyReducedPom>false</createDependencyReducedPom>
+              <!--
+                NOT relocated on purpose: org.openxmlformats, org.etsi, org.w3.x2000 and
+                com.microsoft.schemas. XMLBeans' binary schema files (.xsb) store the original
+                class names of these generated types, so moving them makes XMLBeans fall back to
+                generic objects and fail with ClassCastException. They stay private to this
+                bundle (we require none of Oracle's POI bundles), so they cannot clash.
+              -->
               <relocations>
                 <relocation><pattern>org.apache.poi</pattern><shadedPattern>${shaded.prefix}.org.apache.poi</shadedPattern></relocation>
                 <relocation><pattern>org.apache.xmlbeans</pattern><shadedPattern>${shaded.prefix}.org.apache.xmlbeans</shadedPattern></relocation>
                 <relocation><pattern>org.apache.commons</pattern><shadedPattern>${shaded.prefix}.org.apache.commons</shadedPattern></relocation>
                 <relocation><pattern>org.apache.logging</pattern><shadedPattern>${shaded.prefix}.org.apache.logging</shadedPattern></relocation>
-                <relocation><pattern>org.openxmlformats</pattern><shadedPattern>${shaded.prefix}.org.openxmlformats</shadedPattern></relocation>
-                <relocation><pattern>org.etsi</pattern><shadedPattern>${shaded.prefix}.org.etsi</shadedPattern></relocation>
-                <relocation><pattern>org.w3.x2000</pattern><shadedPattern>${shaded.prefix}.org.w3.x2000</shadedPattern></relocation>
-                <relocation><pattern>com.microsoft.schemas</pattern><shadedPattern>${shaded.prefix}.com.microsoft.schemas</shadedPattern></relocation>
                 <relocation><pattern>com.graphbuilder</pattern><shadedPattern>${shaded.prefix}.com.graphbuilder</shadedPattern></relocation>
                 <relocation><pattern>com.zaxxer</pattern><shadedPattern>${shaded.prefix}.com.zaxxer</shadedPattern></relocation>
               </relocations>
@@ -164,7 +174,7 @@
                     <Bundle-Name>Quick Export</Bundle-Name>
                     <Bundle-Version>${extension.version}</Bundle-Version>
                     <Bundle-ClassPath>.</Bundle-ClassPath>
-                    <Require-Bundle>oracle.ide,oracle.javatools,oracle.javaxide,oracle.sqldeveloper,oracle.sqldeveloper.utils,oracle.jdeveloper.db.connection</Require-Bundle>
+                    <Require-Bundle>oracle.ide,oracle.javatools,oracle.javaxide,oracle.sqldeveloper,oracle.sqldeveloper.utils,oracle.jdeveloper.db.connection,oracle.ide.webupdate</Require-Bundle>
                   </manifestEntries>
                 </transformer>
               </transformers>
