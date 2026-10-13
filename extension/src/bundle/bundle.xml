@@ -4,7 +4,7 @@
   <update id="dev.quickexport.sqldeveloper">
     <name>Quick Export</name>
     <version>@EXTENSION_VERSION@</version>
-    <author>SqlDeveloperQuickExport contributors</author>
+    <author>Alex Karhu</author>
     <description>Export the query result grid to CSV or Excel.</description>
     <post-startup-hook>dev.quickexport.sqldev.FirstRunHook</post-startup-hook>
   </update>

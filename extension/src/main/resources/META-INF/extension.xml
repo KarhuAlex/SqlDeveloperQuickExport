@@ -4,7 +4,7 @@
            version="${extension.version}"
            esdk-version="1.0">
   <name>Quick Export</name>
-  <owner>SqlDeveloperQuickExport contributors</owner>
+  <owner>Alex Karhu</owner>
   <!--
     A service feature that is reloaded at start-up once it has been used, like Oracle's own
     optional extensions (snippet, scheduler, ssh). Without a feature the IDE keeps the
