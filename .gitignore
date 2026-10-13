@@ -1,32 +1,16 @@
 # Build output
 target/
-*.class
-*.log
 
-# IDE
+# IDE files
 .idea/
 *.iml
 .vscode/
 .classpath
 .project
 .settings/
-nbproject/
 
-# --- Oracle material: must NEVER be committed (see README / LICENSE notes) ---
-# Oracle jars, wherever they end up
+# Oracle material must never be committed
 **/oracle.*.jar
 **/ojdbc*.jar
-**/ojmisc*.jar
 **/dbtools-*.jar
-sqldeveloper/
-sqldeveloper-*/
-# Anything extracted, decompiled or dumped from an Oracle install
-oracle-extract/
-decompiled/
-javap-dump/
-*.javap.txt
-docs/private/
-
-# Local-only build configuration
-local.properties
-.mvn/local-settings.xml
+/sqldeveloper*/
