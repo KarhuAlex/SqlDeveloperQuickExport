@@ -203,6 +203,17 @@ class XlsxWriterTest {
     }
 
     @Test
+    void resultsWiderThanExcelAllowsFailBeforeWritingAnything() {
+        String[] names = new String[XlsxWriter.EXCEL_MAX_COLUMNS + 1];
+        java.util.Arrays.fill(names, "C");
+        ByteArrayOutputStream out = new ByteArrayOutputStream();
+        IOException e = assertThrows(IOException.class,
+                () -> new XlsxWriter().write(ListModel.of(names), out, ExportControl.NONE));
+        assertTrue(e.getMessage().contains("Export to CSV"), e.getMessage());
+        assertEquals(0, out.size());
+    }
+
+    @Test
     void rejectsNonsenseSheetLimit() {
         assertThrows(IllegalArgumentException.class, () -> new XlsxWriter(1));
     }

@@ -39,6 +39,7 @@ import org.apache.poi.xssf.streaming.SXSSFWorkbook;
 public final class XlsxWriter {
 
     public static final int EXCEL_MAX_ROWS = 1_048_576;
+    public static final int EXCEL_MAX_COLUMNS = 16_384;
     public static final int EXCEL_MAX_CELL_CHARS = 32_767;
 
     static final int WIDTH_SAMPLE_ROWS = 1000;
@@ -63,6 +64,10 @@ public final class XlsxWriter {
 
     /** Writes the workbook to {@code out}; the stream is not closed. */
     public ExportResult write(ExportModel model, OutputStream out, ExportControl control) throws IOException {
+        if (model.getColumnCount() > EXCEL_MAX_COLUMNS) {
+            throw new IOException("The result has " + model.getColumnCount() + " columns, but an Excel sheet holds at most "
+                    + EXCEL_MAX_COLUMNS + ". Export to CSV instead.");
+        }
         SXSSFWorkbook wb = new SXSSFWorkbook(100);
         wb.setCompressTempFiles(true);
         try {
