@@ -77,12 +77,12 @@ final class ProgressDialog extends JDialog implements ExportJob.Listener {
                 .append(NumberFormat.getIntegerInstance().format(result.rows())).append(" rows exported to\n")
                 .append(target);
         if (result.sheets() > 1) {
-            message.append("\n\nThe rows did not fit on one Excel sheet and continue on ")
+            message.append("\n\nThe rows did not fit on one Excel sheet, so they continue on ")
                     .append(result.sheets()).append(" sheets.");
         }
         if (shortenedValues > 0) {
             message.append("\n\n").append(shortenedValues)
-                    .append(" long text value(s) were shortened (Excel's cell limit, or lob.maxChars in the settings file).");
+                    .append(" long text value(s) were shortened to fit Excel's cell limit or the lob.maxChars setting.");
         }
         Object[] options = {"Open folder", "Close"};
         int choice = JOptionPane.showOptionDialog(owner, message.toString(), ExportUi.TITLE,

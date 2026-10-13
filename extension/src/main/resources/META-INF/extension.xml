@@ -13,7 +13,7 @@
   <feature id="dev.quickexport.sqldeveloper" xmlns="http://xmlns.oracle.com/ide/extension">
     <category-id>db-category</category-id>
     <name>Quick Export</name>
-    <description>One-click CSV and Excel export from the query result grid</description>
+    <description>Export the query result grid to CSV or Excel</description>
     <type>
       <service can-user-disable="true" reload-if-used="true"/>
     </type>

@@ -31,7 +31,7 @@ record GridSource(String sql, String connectionName) {
         }
         if (hasBinds(query)) {
             throw new UnsupportedGridException(
-                    "This query uses bind variables, which Quick Export cannot re-run yet.\n"
+                    "Quick Export cannot export queries that use bind variables yet.\n"
                     + "Run the query again with the values written into the SQL, then export.");
         }
         String connection = query.getConnectionName();

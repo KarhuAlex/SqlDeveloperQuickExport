@@ -9,7 +9,7 @@
   <version>0.1.0-SNAPSHOT</version>
   <packaging>pom</packaging>
   <name>SQL Developer Quick Export (parent)</name>
-  <description>One-click CSV/XLSX export from the SQL Developer query result grid. Not affiliated with Oracle.</description>
+  <description>Exports a SQL Developer query result grid to CSV or XLSX. Not affiliated with Oracle.</description>
 
   <licenses>
     <license>

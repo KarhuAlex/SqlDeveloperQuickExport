@@ -6,24 +6,25 @@ All notable changes to this project are documented here. The format follows
 ## [Unreleased]
 
 ### Added
-- SQL Developer extension: **Quick Export to CSV** and **Quick Export to Excel (.xlsx)** on the query
-  result grid's right-click menu. Verified on SQL Developer 24.3.1.347.1826.
-- File chooser with a timestamped default name that remembers the last folder; overwrite confirmation.
-- Export of the complete result by re-running the grid's query on a separate session, streamed to the file.
-- Background export with progress window and Cancel; completion message with Open folder; readable errors
-  (file locked by Excel, no permission, query failed). A cancelled or failed export leaves no partial file and
-  does not touch an existing one.
-- Settings file (delimiter, decimal separator, BOM, LOB length) in the SQL Developer user directory.
-- Install zip for Help > Check for Updates > Install From Local File, with a first-run hook that activates
-  the extension (see docs/grid-discovery.md).
-- `core` module: streaming CSV writer (UTF-8 with optional BOM, configurable delimiter and decimal
-  separator, RFC 4180 quoting, ISO dates, NULL as empty).
-- `core` module: streaming XLSX writer on Apache POI SXSSF (bold header, frozen header row, autofilter,
-  typed number/date/boolean cells, column widths, sheet rollover at Excel's row limit, early failure beyond
-  Excel's 16,384 columns).
-- `core` module: JDBC result set adapter (plain Java types, CLOB truncation with marker, BLOB placeholder).
-- `core` module: atomic file writing (temp file, then move) and a fail-fast "file is locked" check.
-- CI workflow that builds and tests `core` only.
+- SQL Developer extension with Quick Export to CSV and Quick Export to Excel (.xlsx) on the query result
+  grid's right-click menu. Tested on SQL Developer 24.3.1.347.1826.
+- A file chooser with a timestamped default name. It remembers the last folder and asks before replacing a file.
+- Export of the complete result: the grid's query runs again on a separate session and streams to the file.
+- A background export with a progress window and Cancel, a completion message with Open folder, and readable
+  errors for a file locked by Excel, a missing permission and a failed query. A cancelled or failed export
+  leaves no partial file and does not touch an existing one.
+- A settings file for the delimiter, decimal separator, BOM and LOB length, in the SQL Developer user directory.
+- An install zip for Help > Check for Updates > Install From Local File. It includes a first-run hook that
+  activates the extension.
+- `core`: a streaming CSV writer with UTF-8 and optional BOM, configurable delimiter and decimal separator,
+  RFC 4180 quoting, ISO dates and NULL as an empty field.
+- `core`: a streaming XLSX writer on Apache POI SXSSF with a bold, frozen header row, autofilter, typed
+  number, date and boolean cells, sized columns and a new sheet at Excel's row limit. It fails early beyond
+  Excel's 16,384 columns.
+- `core`: a JDBC result set adapter that reads plain Java types, truncates CLOBs with a marker and exports
+  BLOBs as a size placeholder.
+- `core`: atomic file writing (temp file, then move) and a fail-fast check for a locked file.
+- A CI workflow that builds and tests `core` only.
 
 ### Known limitations
 - Queries with bind variables are refused with a message.
