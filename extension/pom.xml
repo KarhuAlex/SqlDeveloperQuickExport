@@ -1,0 +1,101 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+
+  <parent>
+    <groupId>dev.quickexport</groupId>
+    <artifactId>sqldeveloper-quick-export-parent</artifactId>
+    <version>0.1.0-SNAPSHOT</version>
+  </parent>
+
+  <artifactId>quick-export-sqldeveloper</artifactId>
+  <name>Quick Export SQL Developer integration</name>
+  <description>Menu contribution and grid adapter. Compiled against jars of a local SQL Developer install.</description>
+
+  <properties>
+    <!--
+      Directory of the SQL Developer install that contains ide/, sqldeveloper/ and jdk/
+      (e.g. C:/sqldeveloper-24.3.1-x64/sqldeveloper). Pass it with -Dsqldev.home=...
+      The jars are only referenced from there for compilation; they are never copied
+      into this repository or into the built extension.
+    -->
+    <sqldev.home>${env.SQLDEV_HOME}</sqldev.home>
+  </properties>
+
+  <dependencies>
+    <dependency>
+      <groupId>dev.quickexport</groupId>
+      <artifactId>quick-export-core</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+
+    <!-- Oracle jars: system scope, resolved from the local install only. -->
+    <dependency>
+      <groupId>local.sqldeveloper</groupId>
+      <artifactId>oracle-ide</artifactId>
+      <version>local</version>
+      <scope>system</scope>
+      <systemPath>${sqldev.home}/ide/extensions/oracle.ide.jar</systemPath>
+    </dependency>
+    <dependency>
+      <groupId>local.sqldeveloper</groupId>
+      <artifactId>javax-ide</artifactId>
+      <version>local</version>
+      <scope>system</scope>
+      <systemPath>${sqldev.home}/ide/lib/javax-ide.jar</systemPath>
+    </dependency>
+    <dependency>
+      <groupId>local.sqldeveloper</groupId>
+      <artifactId>javatools</artifactId>
+      <version>local</version>
+      <scope>system</scope>
+      <systemPath>${sqldev.home}/ide/lib/javatools.jar</systemPath>
+    </dependency>
+    <dependency>
+      <groupId>local.sqldeveloper</groupId>
+      <artifactId>oracle-sqldeveloper</artifactId>
+      <version>local</version>
+      <scope>system</scope>
+      <systemPath>${sqldev.home}/sqldeveloper/extensions/oracle.sqldeveloper.jar</systemPath>
+    </dependency>
+    <dependency>
+      <groupId>local.sqldeveloper</groupId>
+      <artifactId>dbtools-common</artifactId>
+      <version>local</version>
+      <scope>system</scope>
+      <systemPath>${sqldev.home}/sqldeveloper/lib/dbtools-common.jar</systemPath>
+    </dependency>
+    <dependency>
+      <groupId>local.sqldeveloper</groupId>
+      <artifactId>oracle-sqldeveloper-utils</artifactId>
+      <version>local</version>
+      <scope>system</scope>
+      <systemPath>${sqldev.home}/sqldeveloper/extensions/oracle.sqldeveloper.utils.jar</systemPath>
+    </dependency>
+  </dependencies>
+
+  <build>
+    <finalName>quick-export-sqldeveloper-${project.version}</finalName>
+    <plugins>
+      <!-- SQL Developer extensions are OSGi bundles: the manifest names the bundles we use. -->
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-jar-plugin</artifactId>
+        <configuration>
+          <archive>
+            <manifestEntries>
+              <Bundle-ManifestVersion>2</Bundle-ManifestVersion>
+              <Bundle-SymbolicName>dev.quickexport.sqldeveloper</Bundle-SymbolicName>
+              <Bundle-Name>Quick Export</Bundle-Name>
+              <Bundle-Version>0.1.0</Bundle-Version>
+              <Bundle-ClassPath>.</Bundle-ClassPath>
+              <Require-Bundle>oracle.ide,oracle.javatools,oracle.javaxide,oracle.sqldeveloper,oracle.sqldeveloper.utils</Require-Bundle>
+            </manifestEntries>
+          </archive>
+        </configuration>
+      </plugin>
+    </plugins>
+  </build>
+</project>

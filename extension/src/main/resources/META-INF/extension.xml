@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<extension xmlns="http://jcp.org/jsr/198/extension-manifest"
+           id="dev.quickexport.sqldeveloper"
+           version="0.1.0"
+           esdk-version="1.0">
+  <name>Quick Export</name>
+  <owner>SqlDeveloperQuickExport contributors</owner>
+  <feature id="dev.quickexport.sqldeveloper" xmlns="http://xmlns.oracle.com/ide/extension">
+    <category-id>db-category</category-id>
+    <name>Quick Export</name>
+    <description>One-click CSV and Excel export from the query result grid</description>
+    <type>
+      <service can-user-disable="true" reload-if-used="true"/>
+    </type>
+  </feature>
+  <hooks>
+    <jdeveloper-hook xmlns="http://xmlns.oracle.com/jdeveloper/1013/extension">
+      <addins>
+        <addin>dev.quickexport.sqldev.QuickExportAddin</addin>
+      </addins>
+    </jdeveloper-hook>
+  </hooks>
+</extension>
