@@ -83,7 +83,7 @@ class JdbcExportModelTest {
             try (ExportModel.RowCursor c = m.openRows()) {
                 assertTrue(c.next());
                 String text = (String) c.getValue(0);
-                assertTrue(text.startsWith("x".repeat(10) + "…[truncated, 50 characters in total]"), text);
+                assertTrue(text.startsWith("x".repeat(10) + "\u2026[truncated, 50 characters in total]"), text);
                 assertEquals("[BLOB 4 bytes]", c.getValue(1));
                 assertTrue(c.next());
                 assertEquals("short", c.getValue(0));

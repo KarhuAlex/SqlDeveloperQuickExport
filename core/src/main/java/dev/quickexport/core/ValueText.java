@@ -15,10 +15,10 @@ import java.util.Date;
 /** Text rendering of cell values, shared by both writers. */
 final class ValueText {
 
-    static final DateTimeFormatter DATE = DateTimeFormatter.ISO_LOCAL_DATE;
+    private static final DateTimeFormatter DATE = DateTimeFormatter.ISO_LOCAL_DATE;
 
     /** {@code 2024-01-31 13:45:00} plus a fraction of a second only when there is one. */
-    static final DateTimeFormatter DATE_TIME = new DateTimeFormatterBuilder()
+    private static final DateTimeFormatter DATE_TIME = new DateTimeFormatterBuilder()
             .appendPattern("uuuu-MM-dd HH:mm:ss")
             .appendFraction(ChronoField.NANO_OF_SECOND, 0, 9, true)
             .toFormatter();
@@ -39,7 +39,7 @@ final class ValueText {
             return b.toString();
         }
         if (v instanceof byte[] bytes) {
-            return binaryPlaceholder(bytes.length);
+            return "[BINARY " + bytes.length + " bytes]";
         }
         LocalDate d = asDate(v);
         if (d != null) {
@@ -59,10 +59,6 @@ final class ValueText {
             return DateTimeFormatter.ISO_INSTANT.format(i);
         }
         return v.toString();
-    }
-
-    static String binaryPlaceholder(int length) {
-        return "[BINARY " + length + " bytes]";
     }
 
     /** A date without a time of day, or null if the value is not date-only. */

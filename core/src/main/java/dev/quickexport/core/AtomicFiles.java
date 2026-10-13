@@ -17,8 +17,8 @@ import java.nio.file.StandardOpenOption;
 public final class AtomicFiles {
 
     @FunctionalInterface
-    public interface Body {
-        void write(OutputStream out) throws IOException;
+    public interface Body<T> {
+        T write(OutputStream out) throws IOException;
     }
 
     private AtomicFiles() {
@@ -29,37 +29,42 @@ public final class AtomicFiles {
      * or the directory is read-only. Does not modify an existing file's contents.
      */
     public static void checkWritable(Path target) throws IOException {
-        Path abs = target.toAbsolutePath();
-        Path dir = abs.getParent();
+        Path file = target.toAbsolutePath();
+        Path dir = file.getParent();
         if (dir == null || !Files.isDirectory(dir)) {
             throw new IOException("Folder does not exist: " + dir);
         }
-        if (Files.exists(abs)) {
-            // Opening with WRITE only (no TRUNCATE_EXISTING) takes a write handle without
-            // changing the content; this fails on Windows when another process holds the file.
-            try (OutputStream ignored = Files.newOutputStream(abs, StandardOpenOption.WRITE)) {
-                // nothing to write
-            }
+        if (Files.exists(file)) {
+            // WRITE without TRUNCATE_EXISTING takes a write handle but keeps the content;
+            // on Windows it fails when another process holds the file open.
+            Files.newOutputStream(file, StandardOpenOption.WRITE).close();
         } else {
-            Path probe = Files.createTempFile(dir, ".qexport-probe-", ".tmp");
-            Files.delete(probe);
+            Files.delete(Files.createTempFile(dir, ".qexport-probe-", ".tmp"));
         }
     }
 
-    public static void write(Path target, Body body) throws IOException {
-        Path abs = target.toAbsolutePath();
-        Path tmp = Files.createTempFile(abs.getParent(), ".qexport-", ".tmp");
+    /**
+     * Runs {@code body} against a temporary file and, only if it returns normally, moves that
+     * file over {@code target}.
+     *
+     * @return whatever {@code body} returned
+     */
+    public static <T> T write(Path target, Body<T> body) throws IOException {
+        Path file = target.toAbsolutePath();
+        Path temp = Files.createTempFile(file.getParent(), ".qexport-", ".tmp");
         try {
-            try (OutputStream out = new BufferedOutputStream(Files.newOutputStream(tmp), 1 << 16)) {
-                body.write(out);
+            T result;
+            try (OutputStream out = new BufferedOutputStream(Files.newOutputStream(temp), 1 << 16)) {
+                result = body.write(out);
             }
             try {
-                Files.move(tmp, abs, StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING);
+                Files.move(temp, file, StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING);
             } catch (AtomicMoveNotSupportedException e) {
-                Files.move(tmp, abs, StandardCopyOption.REPLACE_EXISTING);
+                Files.move(temp, file, StandardCopyOption.REPLACE_EXISTING);
             }
+            return result;
         } finally {
-            Files.deleteIfExists(tmp);
+            Files.deleteIfExists(temp);
         }
     }
 }

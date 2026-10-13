@@ -81,6 +81,12 @@
           <groupId>org.apache.maven.plugins</groupId>
           <artifactId>maven-surefire-plugin</artifactId>
           <version>3.5.2</version>
+          <configuration>
+            <systemPropertyVariables>
+              <!-- POI logs through the log4j API; no implementation is wanted in tests. -->
+              <log4j2.statusLoggerLevel>OFF</log4j2.statusLoggerLevel>
+            </systemPropertyVariables>
+          </configuration>
         </plugin>
         <plugin>
           <groupId>org.apache.maven.plugins</groupId>

@@ -15,7 +15,7 @@ import java.nio.charset.StandardCharsets;
 public final class CsvWriter {
 
     private static final byte[] BOM = {(byte) 0xEF, (byte) 0xBB, (byte) 0xBF};
-    private static final long PROGRESS_EVERY = 1000;
+    private static final String LINE_END = "\r\n";
 
     private final ExportSettings settings;
 
@@ -30,38 +30,36 @@ public final class CsvWriter {
         }
         Writer w = new BufferedWriter(new OutputStreamWriter(out, StandardCharsets.UTF_8), 1 << 16);
         int cols = model.getColumnCount();
-        char delimiter = settings.delimiter();
+        RowTicker ticker = new RowTicker(control);
 
         String[] header = HeaderNames.unique(model);
+        writeRecord(w, cols, c -> header[c]);
+
+        try (ExportModel.RowCursor cursor = model.openRows()) {
+            while (cursor.next()) {
+                ticker.beforeRow();
+                writeRecord(w, cols, c -> ValueText.text(cursor.getValue(c), settings.decimalSeparator()));
+                ticker.afterRow();
+            }
+        }
+        w.flush();
+        return new ExportResult(ticker.finish(), 0, 1);
+    }
+
+    @FunctionalInterface
+    private interface Column {
+        String text(int index) throws IOException;
+    }
+
+    private void writeRecord(Writer w, int cols, Column column) throws IOException {
+        char delimiter = settings.delimiter();
         for (int c = 0; c < cols; c++) {
             if (c > 0) {
                 w.write(delimiter);
             }
-            writeField(w, header[c], delimiter);
+            writeField(w, column.text(c), delimiter);
         }
-        w.write("\r\n");
-
-        long rows = 0;
-        try (ExportModel.RowCursor cursor = model.openRows()) {
-            while (cursor.next()) {
-                if (control.isCancelled()) {
-                    throw new ExportCancelledException();
-                }
-                for (int c = 0; c < cols; c++) {
-                    if (c > 0) {
-                        w.write(delimiter);
-                    }
-                    writeField(w, ValueText.text(cursor.getValue(c), settings.decimalSeparator()), delimiter);
-                }
-                w.write("\r\n");
-                if (++rows % PROGRESS_EVERY == 0) {
-                    control.progress(rows);
-                }
-            }
-        }
-        w.flush();
-        control.progress(rows);
-        return new ExportResult(rows, 0, 1);
+        w.write(LINE_END);
     }
 
     private static void writeField(Writer w, String s, char delimiter) throws IOException {

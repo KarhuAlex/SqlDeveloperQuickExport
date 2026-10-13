@@ -4,12 +4,12 @@ import java.io.IOException;
 import java.io.OutputStream;
 import java.math.BigDecimal;
 import java.math.BigInteger;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.OffsetDateTime;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
-import java.time.Instant;
 
 import org.apache.poi.ss.usermodel.Cell;
 import org.apache.poi.ss.usermodel.CellStyle;
@@ -26,10 +26,9 @@ import org.apache.poi.xssf.streaming.SXSSFWorkbook;
  * <ul>
  *   <li>Bold header, frozen header row, autofilter, column widths from the header and the
  *       first {@value #WIDTH_SAMPLE_ROWS} rows.</li>
- *   <li>Numbers are numeric cells, dates are date cells (ISO-like display format),
- *       booleans are boolean cells. Numbers Excel cannot hold exactly (more than 15
- *       significant digits) and dates before 1900 are written as text instead of being
- *       silently altered.</li>
+ *   <li>Numbers are numeric cells, dates are date cells, booleans are boolean cells. Numbers
+ *       Excel cannot hold exactly (more than 15 significant digits) and dates before 1900 are
+ *       written as text instead of being silently altered.</li>
  *   <li>Text longer than Excel's 32,767-character cell limit is truncated and counted in
  *       {@link ExportResult#truncatedCells()}.</li>
  *   <li>When a sheet reaches Excel's row limit the export continues on a new sheet, so
@@ -43,10 +42,15 @@ public final class XlsxWriter {
     public static final int EXCEL_MAX_CELL_CHARS = 32_767;
 
     static final int WIDTH_SAMPLE_ROWS = 1000;
+
+    private static final int ROW_WINDOW = 100;
     private static final int MIN_WIDTH = 8;
     private static final int MAX_WIDTH = 60;
-    private static final long PROGRESS_EVERY = 1000;
-    private static final LocalDate EXCEL_EPOCH_SAFE = LocalDate.of(1900, 3, 1);
+    private static final int DATE_CHARS = 10;
+    private static final int DATE_TIME_CHARS = 19;
+    private static final int BOOLEAN_CHARS = 5;
+    private static final int TRUNCATED = -1;
+    private static final LocalDate EARLIEST_EXCEL_DATE = LocalDate.of(1900, 3, 1);
 
     private final int maxRowsPerSheet;
 
@@ -64,50 +68,45 @@ public final class XlsxWriter {
 
     /** Writes the workbook to {@code out}; the stream is not closed. */
     public ExportResult write(ExportModel model, OutputStream out, ExportControl control) throws IOException {
-        if (model.getColumnCount() > EXCEL_MAX_COLUMNS) {
-            throw new IOException("The result has " + model.getColumnCount() + " columns, but an Excel sheet holds at most "
+        int cols = model.getColumnCount();
+        if (cols > EXCEL_MAX_COLUMNS) {
+            throw new IOException("The result has " + cols + " columns, but an Excel sheet holds at most "
                     + EXCEL_MAX_COLUMNS + ". Export to CSV instead.");
         }
-        SXSSFWorkbook wb = new SXSSFWorkbook(100);
+        RowTicker ticker = new RowTicker(control);
+        SXSSFWorkbook wb = new SXSSFWorkbook(ROW_WINDOW);
         wb.setCompressTempFiles(true);
         try {
             Styles styles = new Styles(wb);
-            int cols = model.getColumnCount();
             String[] header = HeaderNames.unique(model);
-
             SheetState sheet = newSheet(wb, styles, header, 1);
             int sheets = 1;
-            long rows = 0;
             long truncated = 0;
 
             try (ExportModel.RowCursor cursor = model.openRows()) {
                 while (cursor.next()) {
-                    if (control.isCancelled()) {
-                        throw new ExportCancelledException();
-                    }
+                    ticker.beforeRow();
                     if (sheet.nextRow >= maxRowsPerSheet) {
                         finish(sheet, cols);
                         sheet = newSheet(wb, styles, header, ++sheets);
                     }
+                    boolean measure = sheet.nextRow <= WIDTH_SAMPLE_ROWS;
                     Row row = sheet.sheet.createRow(sheet.nextRow++);
                     for (int c = 0; c < cols; c++) {
-                        Object v = cursor.getValue(c);
-                        int len = writeCell(row, c, v, styles);
-                        if (len < 0) {
+                        int chars = writeCell(row, c, cursor.getValue(c), styles, measure);
+                        if (chars == TRUNCATED) {
                             truncated++;
-                            len = EXCEL_MAX_CELL_CHARS;
+                            chars = EXCEL_MAX_CELL_CHARS;
                         }
-                        if (sheet.nextRow <= WIDTH_SAMPLE_ROWS + 1) {
-                            sheet.widths[c] = Math.max(sheet.widths[c], len);
+                        if (measure) {
+                            sheet.widths[c] = Math.max(sheet.widths[c], chars);
                         }
                     }
-                    if (++rows % PROGRESS_EVERY == 0) {
-                        control.progress(rows);
-                    }
+                    ticker.afterRow();
                 }
             }
             finish(sheet, cols);
-            control.progress(rows);
+            long rows = ticker.finish();
             wb.write(out);
             return new ExportResult(rows, truncated, sheets);
         } finally {
@@ -116,12 +115,12 @@ public final class XlsxWriter {
         }
     }
 
-    private SheetState newSheet(SXSSFWorkbook wb, Styles styles, String[] header, int index) {
+    private static SheetState newSheet(SXSSFWorkbook wb, Styles styles, String[] header, int index) {
         SXSSFSheet sheet = wb.createSheet(index == 1 ? "Data" : "Data (" + index + ")");
         int[] widths = new int[header.length];
-        Row hr = sheet.createRow(0);
+        Row headerRow = sheet.createRow(0);
         for (int c = 0; c < header.length; c++) {
-            Cell cell = hr.createCell(c);
+            Cell cell = headerRow.createCell(c);
             cell.setCellValue(truncate(header[c]));
             cell.setCellStyle(styles.header);
             widths[c] = header[c].length();
@@ -130,7 +129,7 @@ public final class XlsxWriter {
         return new SheetState(sheet, widths);
     }
 
-    private void finish(SheetState s, int cols) {
+    private static void finish(SheetState s, int cols) {
         if (cols == 0) {
             return;
         }
@@ -142,52 +141,52 @@ public final class XlsxWriter {
     }
 
     /**
-     * Writes one value. Returns the approximate display length for column sizing, or -1 if the
-     * text had to be truncated to Excel's cell limit.
+     * Writes one value. Returns its approximate display width in characters when {@code measure}
+     * is set (0 otherwise), or {@link #TRUNCATED} if the text had to be cut to Excel's cell limit.
      */
-    private static int writeCell(Row row, int col, Object v, Styles styles) {
+    private static int writeCell(Row row, int col, Object v, Styles styles, boolean measure) {
         if (v == null) {
             return 0;
         }
         if (v instanceof Boolean b) {
             row.createCell(col).setCellValue(b);
-            return 5;
+            return BOOLEAN_CHARS;
         }
         if (v instanceof Number n) {
-            if (isExactInExcel(n)) {
-                // Float.doubleValue() would show 0.1f as 0.10000000149...; go via its decimal text.
-                double x = n instanceof Float ? Double.parseDouble(n.toString()) : n.doubleValue();
-                row.createCell(col).setCellValue(x);
-                return ValueText.text(n, '.').length();
+            if (!isExactInExcel(n)) {
+                return writeText(row, col, ValueText.text(n, '.'), measure);
             }
-            return writeText(row, col, ValueText.text(n, '.'));
+            // Float.doubleValue() would turn 0.1f into 0.10000000149...; go via its decimal text.
+            row.createCell(col).setCellValue(n instanceof Float ? Double.parseDouble(n.toString()) : n.doubleValue());
+            return measure ? ValueText.text(n, '.').length() : 0;
         }
-        LocalDate d = ValueText.asDate(v);
-        if (d != null) {
-            return writeDate(row, col, d.atStartOfDay(), styles.date, v);
+        LocalDate date = ValueText.asDate(v);
+        if (date != null) {
+            return writeDate(row, col, date.atStartOfDay(), styles.date, DATE_CHARS, v, measure);
         }
-        LocalDateTime dt = ValueText.asDateTime(v);
-        if (dt == null) {
-            dt = zonedWallClock(v);
+        LocalDateTime dateTime = ValueText.asDateTime(v);
+        if (dateTime == null) {
+            dateTime = wallClock(v);
         }
-        if (dt != null) {
-            return writeDate(row, col, dt, styles.dateTime, v);
+        if (dateTime != null) {
+            return writeDate(row, col, dateTime, styles.dateTime, DATE_TIME_CHARS, v, measure);
         }
-        return writeText(row, col, ValueText.text(v, '.'));
+        return writeText(row, col, ValueText.text(v, '.'), measure);
     }
 
-    private static int writeDate(Row row, int col, LocalDateTime dt, CellStyle style, Object original) {
-        if (dt.toLocalDate().isBefore(EXCEL_EPOCH_SAFE)) {
-            return writeText(row, col, ValueText.text(original, '.'));
+    private static int writeDate(Row row, int col, LocalDateTime value, CellStyle style, int chars,
+            Object original, boolean measure) {
+        if (value.toLocalDate().isBefore(EARLIEST_EXCEL_DATE)) {
+            return writeText(row, col, ValueText.text(original, '.'), measure);
         }
         Cell cell = row.createCell(col);
-        cell.setCellValue(dt);
+        cell.setCellValue(value);
         cell.setCellStyle(style);
-        return style.getDataFormatString().length();
+        return chars;
     }
 
     /** Excel has no time zones: keep the wall-clock time the value was recorded with. */
-    private static LocalDateTime zonedWallClock(Object v) {
+    private static LocalDateTime wallClock(Object v) {
         if (v instanceof OffsetDateTime o) {
             return o.toLocalDateTime();
         }
@@ -200,25 +199,28 @@ public final class XlsxWriter {
         return null;
     }
 
-    private static int writeText(Row row, int col, String s) {
+    private static int writeText(Row row, int col, String s, boolean measure) {
         boolean cut = s.length() > EXCEL_MAX_CELL_CHARS;
         row.createCell(col).setCellValue(cut ? s.substring(0, EXCEL_MAX_CELL_CHARS) : s);
-        return cut ? -1 : longestLine(s);
+        if (cut) {
+            return TRUNCATED;
+        }
+        return measure ? longestLine(s) : 0;
     }
 
     private static int longestLine(String s) {
         int best = 0;
-        int cur = 0;
+        int current = 0;
         for (int i = 0; i < s.length(); i++) {
             char ch = s.charAt(i);
             if (ch == '\n' || ch == '\r') {
-                best = Math.max(best, cur);
-                cur = 0;
+                best = Math.max(best, current);
+                current = 0;
             } else {
-                cur++;
+                current++;
             }
         }
-        return Math.max(best, cur);
+        return Math.max(best, current);
     }
 
     private static String truncate(String s) {
@@ -265,12 +267,10 @@ public final class XlsxWriter {
             header = wb.createCellStyle();
             header.setFont(bold);
 
-            short dateFmt = wb.createDataFormat().getFormat("yyyy-mm-dd");
-            short dateTimeFmt = wb.createDataFormat().getFormat("yyyy-mm-dd hh:mm:ss");
             date = wb.createCellStyle();
-            date.setDataFormat(dateFmt);
+            date.setDataFormat(wb.createDataFormat().getFormat("yyyy-mm-dd"));
             dateTime = wb.createCellStyle();
-            dateTime.setDataFormat(dateTimeFmt);
+            dateTime.setDataFormat(wb.createDataFormat().getFormat("yyyy-mm-dd hh:mm:ss"));
         }
     }
 }

@@ -10,7 +10,6 @@ import java.sql.ResultSetMetaData;
 import java.sql.SQLException;
 import java.sql.Types;
 import java.time.OffsetDateTime;
-import java.util.concurrent.atomic.AtomicLong;
 
 /**
  * Adapts an already-executed JDBC {@link ResultSet} to an {@link ExportModel}, reading every
@@ -42,7 +41,7 @@ public final class JdbcExportModel implements ExportModel {
     private final int lobMaxChars;
     private final String[] names;
     private final int[] types;
-    private final AtomicLong truncatedLobs = new AtomicLong();
+    private long truncatedLobs;
     private boolean opened;
 
     public JdbcExportModel(ResultSet rs, int lobMaxChars) throws SQLException {
@@ -58,9 +57,12 @@ public final class JdbcExportModel implements ExportModel {
         }
     }
 
-    /** CLOB/LONG values that were cut to {@code lobMaxChars}; valid once the export finished. */
+    /**
+     * CLOB/LONG values cut to {@code lobMaxChars} so far. The model is read from a single
+     * thread, which is also the one that should call this.
+     */
     public long getTruncatedLobs() {
-        return truncatedLobs.get();
+        return truncatedLobs;
     }
 
     @Override
@@ -172,7 +174,7 @@ public final class JdbcExportModel implements ExportModel {
         if (total <= lobMaxChars) {
             return clob.getSubString(1, (int) total);
         }
-        truncatedLobs.incrementAndGet();
+        truncatedLobs++;
         return clob.getSubString(1, lobMaxChars) + marker(total);
     }
 
@@ -193,7 +195,7 @@ public final class JdbcExportModel implements ExportModel {
                 }
             }
             if (total > lobMaxChars) {
-                truncatedLobs.incrementAndGet();
+                truncatedLobs++;
                 sb.append(marker(total));
             }
             return sb.toString();
@@ -203,6 +205,6 @@ public final class JdbcExportModel implements ExportModel {
     }
 
     private static String marker(long total) {
-        return "…[truncated, " + total + " characters in total]";
+        return "\u2026[truncated, " + total + " characters in total]";
     }
 }

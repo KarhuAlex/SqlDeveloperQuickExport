@@ -22,7 +22,7 @@ import org.junit.jupiter.api.Test;
 
 class CsvWriterTest {
 
-    private static final String BOM = "﻿";
+    private static final String BOM = "\uFEFF";
 
     private static String csv(ExportSettings settings, ExportModel model) throws IOException {
         ByteArrayOutputStream out = new ByteArrayOutputStream();
