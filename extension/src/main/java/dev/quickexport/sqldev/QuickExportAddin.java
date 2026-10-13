@@ -17,25 +17,11 @@ public final class QuickExportAddin implements Addin {
 
     @Override
     public void initialize() {
-        String status;
         try {
             GridIntegration.install();
             LOG.info("Quick Export: result grid menu items installed");
-            status = "installed";
         } catch (Throwable t) {
             LOG.log(Level.SEVERE, "Quick Export is disabled: could not attach to this SQL Developer version", t);
-            status = "FAILED: " + t;
-        }
-        spikeMarker(status); // SPIKE ONLY: remove before release
-    }
-
-    private static void spikeMarker(String status) {
-        try {
-            java.nio.file.Files.writeString(
-                    java.nio.file.Path.of(System.getProperty("java.io.tmpdir"), "quickexport-addin-loaded.txt"),
-                    status + System.lineSeparator());
-        } catch (Exception ignored) {
-            // diagnostics only
         }
     }
 }

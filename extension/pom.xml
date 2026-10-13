@@ -22,6 +22,10 @@
       into this repository or into the built extension.
     -->
     <sqldev.home>${env.SQLDEV_HOME}</sqldev.home>
+
+    <!-- SQL Developer wants a purely numeric extension version (no -SNAPSHOT). -->
+    <extension.version>0.1.0</extension.version>
+    <shaded.prefix>dev.quickexport.shaded</shaded.prefix>
   </properties>
 
   <dependencies>
@@ -62,6 +66,13 @@
     </dependency>
     <dependency>
       <groupId>local.sqldeveloper</groupId>
+      <artifactId>oracle-jdeveloper-db-connection</artifactId>
+      <version>local</version>
+      <scope>system</scope>
+      <systemPath>${sqldev.home}/jdev/extensions/oracle.jdeveloper.db.connection.jar</systemPath>
+    </dependency>
+    <dependency>
+      <groupId>local.sqldeveloper</groupId>
       <artifactId>dbtools-common</artifactId>
       <version>local</version>
       <scope>system</scope>
@@ -78,23 +89,119 @@
 
   <build>
     <finalName>quick-export-sqldeveloper-${project.version}</finalName>
+
+    <resources>
+      <resource>
+        <directory>src/main/resources</directory>
+        <filtering>true</filtering>
+        <includes>
+          <include>META-INF/extension.xml</include>
+        </includes>
+      </resource>
+      <resource>
+        <directory>src/main/resources</directory>
+        <filtering>false</filtering>
+        <excludes>
+          <exclude>META-INF/extension.xml</exclude>
+        </excludes>
+      </resource>
+    </resources>
+
     <plugins>
-      <!-- SQL Developer extensions are OSGi bundles: the manifest names the bundles we use. -->
+      <!--
+        One self-contained jar: our code, core and Apache POI (with its dependencies) under
+        relocated package names so they cannot clash with libraries SQL Developer ships.
+        Oracle's jars are not included (system scope is never shaded).
+        SQL Developer extensions are OSGi bundles: the manifest names the bundles we use.
+      -->
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
-        <artifactId>maven-jar-plugin</artifactId>
-        <configuration>
-          <archive>
-            <manifestEntries>
-              <Bundle-ManifestVersion>2</Bundle-ManifestVersion>
-              <Bundle-SymbolicName>dev.quickexport.sqldeveloper</Bundle-SymbolicName>
-              <Bundle-Name>Quick Export</Bundle-Name>
-              <Bundle-Version>0.1.0</Bundle-Version>
-              <Bundle-ClassPath>.</Bundle-ClassPath>
-              <Require-Bundle>oracle.ide,oracle.javatools,oracle.javaxide,oracle.sqldeveloper,oracle.sqldeveloper.utils</Require-Bundle>
-            </manifestEntries>
-          </archive>
-        </configuration>
+        <artifactId>maven-shade-plugin</artifactId>
+        <executions>
+          <execution>
+            <phase>package</phase>
+            <goals>
+              <goal>shade</goal>
+            </goals>
+            <configuration>
+              <createDependencyReducedPom>false</createDependencyReducedPom>
+              <relocations>
+                <relocation><pattern>org.apache.poi</pattern><shadedPattern>${shaded.prefix}.org.apache.poi</shadedPattern></relocation>
+                <relocation><pattern>org.apache.xmlbeans</pattern><shadedPattern>${shaded.prefix}.org.apache.xmlbeans</shadedPattern></relocation>
+                <relocation><pattern>org.apache.commons</pattern><shadedPattern>${shaded.prefix}.org.apache.commons</shadedPattern></relocation>
+                <relocation><pattern>org.apache.logging</pattern><shadedPattern>${shaded.prefix}.org.apache.logging</shadedPattern></relocation>
+                <relocation><pattern>org.openxmlformats</pattern><shadedPattern>${shaded.prefix}.org.openxmlformats</shadedPattern></relocation>
+                <relocation><pattern>org.etsi</pattern><shadedPattern>${shaded.prefix}.org.etsi</shadedPattern></relocation>
+                <relocation><pattern>org.w3.x2000</pattern><shadedPattern>${shaded.prefix}.org.w3.x2000</shadedPattern></relocation>
+                <relocation><pattern>com.microsoft.schemas</pattern><shadedPattern>${shaded.prefix}.com.microsoft.schemas</shadedPattern></relocation>
+                <relocation><pattern>com.graphbuilder</pattern><shadedPattern>${shaded.prefix}.com.graphbuilder</shadedPattern></relocation>
+                <relocation><pattern>com.zaxxer</pattern><shadedPattern>${shaded.prefix}.com.zaxxer</shadedPattern></relocation>
+              </relocations>
+              <filters>
+                <filter>
+                  <artifact>*:*</artifact>
+                  <excludes>
+                    <exclude>META-INF/*.SF</exclude>
+                    <exclude>META-INF/*.DSA</exclude>
+                    <exclude>META-INF/*.RSA</exclude>
+                    <exclude>META-INF/MANIFEST.MF</exclude>
+                    <exclude>**/module-info.class</exclude>
+                    <exclude>META-INF/versions/*/module-info.class</exclude>
+                    <exclude>META-INF/maven/**</exclude>
+                  </excludes>
+                </filter>
+              </filters>
+              <transformers>
+                <transformer implementation="org.apache.maven.plugins.shade.resource.ServicesResourceTransformer"/>
+                <transformer implementation="org.apache.maven.plugins.shade.resource.ApacheLicenseResourceTransformer"/>
+                <transformer implementation="org.apache.maven.plugins.shade.resource.ApacheNoticeResourceTransformer">
+                  <addHeader>false</addHeader>
+                </transformer>
+                <transformer implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
+                  <manifestEntries>
+                    <Bundle-ManifestVersion>2</Bundle-ManifestVersion>
+                    <Bundle-SymbolicName>dev.quickexport.sqldeveloper</Bundle-SymbolicName>
+                    <Bundle-Name>Quick Export</Bundle-Name>
+                    <Bundle-Version>${extension.version}</Bundle-Version>
+                    <Bundle-ClassPath>.</Bundle-ClassPath>
+                    <Require-Bundle>oracle.ide,oracle.javatools,oracle.javaxide,oracle.sqldeveloper,oracle.sqldeveloper.utils,oracle.jdeveloper.db.connection</Require-Bundle>
+                  </manifestEntries>
+                </transformer>
+              </transformers>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
+
+      <!-- The Check for Updates > Install From Local File package: bundle.xml plus the jar. -->
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-antrun-plugin</artifactId>
+        <version>3.1.0</version>
+        <executions>
+          <execution>
+            <id>install-bundle</id>
+            <phase>package</phase>
+            <goals>
+              <goal>run</goal>
+            </goals>
+            <configuration>
+              <target>
+                <property name="bundle.dir" value="${project.build.directory}/bundle"/>
+                <mkdir dir="${bundle.dir}/META-INF"/>
+                <copy file="${project.basedir}/src/bundle/bundle.xml" tofile="${bundle.dir}/META-INF/bundle.xml" overwrite="true">
+                  <filterset>
+                    <filter token="EXTENSION_VERSION" value="${extension.version}"/>
+                  </filterset>
+                </copy>
+                <zip destfile="${project.build.directory}/quick-export-sqldeveloper-${extension.version}-install.zip">
+                  <fileset dir="${bundle.dir}" includes="META-INF/bundle.xml"/>
+                  <fileset dir="${project.build.directory}" includes="${project.build.finalName}.jar"/>
+                </zip>
+              </target>
+            </configuration>
+          </execution>
+        </executions>
       </plugin>
     </plugins>
   </build>

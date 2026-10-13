@@ -1,37 +1,24 @@
 package dev.quickexport.sqldev;
 
-import java.io.IOException;
-import java.io.PrintWriter;
-import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
-import java.nio.file.Path;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-import javax.swing.JOptionPane;
-
-import oracle.dbtools.raptor.controls.grid.AbstractRaptorGridModel;
-import oracle.dbtools.raptor.controls.grid.IResultSetTableModel;
-import oracle.dbtools.raptor.controls.grid.RaptorGridTable;
 import oracle.dbtools.raptor.controls.grid.contextmenu.GridContextMenuItem;
 import oracle.ide.Context;
 import oracle.ide.Ide;
 import oracle.ide.controller.ContextMenu;
 import oracle.ide.controller.IdeAction;
 
-/**
- * SPIKE: a single "Quick Export (spike)" item on the grid's right-click menu. Clicking it
- * writes a diagnostic report about the grid model to a text file. This is used to verify
- * the integration points and the value types the grid hands out, before the real exporter
- * is built on top of them.
- */
+/** Adds "Quick Export to CSV" and "Quick Export to Excel (.xlsx)" to the result grid's popup menu. */
 final class QuickExportMenuItem extends GridContextMenuItem {
 
     private static final Logger LOG = Logger.getLogger("dev.quickexport");
     private static final QuickExportMenuItem INSTANCE = new QuickExportMenuItem();
 
-    private final int cmdSpike = Ide.findOrCreateCmdID("dev.quickexport.spike");
-    private IdeAction spikeAction;
+    private final int cmdCsv = Ide.findOrCreateCmdID("dev.quickexport.csv");
+    private final int cmdXlsx = Ide.findOrCreateCmdID("dev.quickexport.xlsx");
+    private IdeAction csvAction;
+    private IdeAction xlsxAction;
 
     private QuickExportMenuItem() {
     }
@@ -43,76 +30,52 @@ final class QuickExportMenuItem extends GridContextMenuItem {
     @Override
     protected boolean canShow(ContextMenu menu) {
         setTableFromContext(menu.getContext());
-        return _table != null;
+        return GridSource.isExportable(_table);
     }
 
     @Override
     protected void createAndShowMenu(ContextMenu menu) {
-        if (spikeAction == null) {
-            spikeAction = createAction(cmdSpike, "Quick Export (spike)", null);
+        if (csvAction == null) {
+            csvAction = createAction(cmdCsv, ExportFormat.CSV.menuLabel, null);
+            xlsxAction = createAction(cmdXlsx, ExportFormat.XLSX.menuLabel, null);
         }
-        menu.add(menu.createMenuItem(spikeAction));
+        menu.addSeparator();
+        menu.add(menu.createMenuItem(csvAction));
+        menu.add(menu.createMenuItem(xlsxAction));
     }
 
     @Override
     public boolean handleEvent(IdeAction action, Context context) {
-        if (action.getCommandId() != cmdSpike) {
+        ExportFormat format = formatOf(action);
+        if (format == null) {
             return false;
         }
         setTableFromContext(context);
         try {
-            Path report = Files.createTempFile("quickexport-spike-", ".txt");
-            try (PrintWriter w = new PrintWriter(Files.newBufferedWriter(report, StandardCharsets.UTF_8))) {
-                describe(_table, w);
-            }
-            JOptionPane.showMessageDialog(null, "Quick Export spike works.\nReport written to:\n" + report);
-        } catch (Throwable t) {
-            LOG.log(Level.SEVERE, "Quick Export spike failed", t);
-            JOptionPane.showMessageDialog(null, "Spike failed: " + t);
+            ExportUi.begin(GridSource.from(_table), format);
+        } catch (GridSource.UnsupportedGridException e) {
+            ExportUi.showError(null, e.getMessage());
+        } catch (RuntimeException | LinkageError e) {
+            LOG.log(Level.SEVERE, "Quick Export could not start", e);
+            ExportUi.showError(null, "Quick Export could not start:\n" + e);
         }
         return true;
     }
 
     @Override
     public boolean update(IdeAction action, Context context) {
-        if (action.getCommandId() != cmdSpike) {
+        if (formatOf(action) == null) {
             return false;
         }
         action.setEnabled(true);
         return true;
     }
 
-    private static void describe(RaptorGridTable table, PrintWriter w) throws IOException {
-        w.println("table class      : " + table.getClass().getName());
-        AbstractRaptorGridModel model = table.getGridModel();
-        w.println("model class      : " + model.getClass().getName());
-        w.println("getRowCount      : " + model.getRowCount());
-        w.println("loadedRowCount   : " + model.getLoadedRowCount());
-        w.println("allRowsFetched   : " + model.allRowsFetched());
-        w.println("fetchSize        : " + model.getFetchSize());
-        w.println("columnCount      : " + model.getColumnCount());
-        w.println("dupColumnNames   : " + model.hasDuplicateColumnNames());
-        if (model instanceof IResultSetTableModel rs) {
-            w.println("connectionName   : " + rs.getConnectionName());
-            w.println("sql              : " + rs.getSql());
-            w.println("modifiedSql      : " + rs.getModifiedSql());
-            w.println("bindList         : " + rs.getBindList());
-            w.println("bindMap          : " + rs.getBindMap());
-            w.println("columnSqlTypes   : " + java.util.Arrays.toString(rs.getColumnSqlTypes()));
+    private ExportFormat formatOf(IdeAction action) {
+        int id = action.getCommandId();
+        if (id == cmdCsv) {
+            return ExportFormat.CSV;
         }
-        int cols = model.getColumnCount();
-        for (int c = 0; c < cols; c++) {
-            w.println("col " + c + " name=" + model.getColumnName(c) + " class=" + model.getColumnClass(c).getName());
-        }
-        int rows = Math.min(model.getLoadedRowCount(), 3);
-        for (int r = 0; r < rows; r++) {
-            for (int c = 0; c < cols; c++) {
-                Object v = model.getValueAt(r, c);
-                String text = String.valueOf(v);
-                w.println("row " + r + " col " + c + " : "
-                        + (v == null ? "null" : v.getClass().getName())
-                        + " = " + (text.length() > 80 ? text.substring(0, 80) + "..." : text));
-            }
-        }
+        return id == cmdXlsx ? ExportFormat.XLSX : null;
     }
 }

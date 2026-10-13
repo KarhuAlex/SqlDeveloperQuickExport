@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bundle version="2.0" xmlns="http://xmlns.oracle.com/jdeveloper/update">
+  <name>Quick Export</name>
+  <update id="dev.quickexport.sqldeveloper">
+    <name>Quick Export</name>
+    <version>@EXTENSION_VERSION@</version>
+    <author>SqlDeveloperQuickExport contributors</author>
+    <description>One-click CSV and Excel export from the query result grid.</description>
+  </update>
+</bundle>

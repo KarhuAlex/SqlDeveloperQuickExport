@@ -1,10 +1,15 @@
 <?xml version="1.0" encoding="UTF-8" ?>
 <extension xmlns="http://jcp.org/jsr/198/extension-manifest"
            id="dev.quickexport.sqldeveloper"
-           version="0.1.0"
+           version="${extension.version}"
            esdk-version="1.0">
   <name>Quick Export</name>
   <owner>SqlDeveloperQuickExport contributors</owner>
+  <!--
+    A service feature that is reloaded at start-up once it has been used, like Oracle's own
+    optional extensions (snippet, scheduler, ssh). Without a feature the IDE keeps the
+    extension in a lazy state and never runs its addin.
+  -->
   <feature id="dev.quickexport.sqldeveloper" xmlns="http://xmlns.oracle.com/ide/extension">
     <category-id>db-category</category-id>
     <name>Quick Export</name>
