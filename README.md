@@ -1,11 +1,12 @@
 # SQL Developer Quick Export
 
+<img width="866" height="419" alt="Preview" src="https://github.com/user-attachments/assets/217d7801-f602-4fd8-97b2-2aec63b1494e" />
+
 CSV and Excel (.xlsx) export from the Oracle SQL Developer query result grid.
 
 Right-click a result grid, choose Quick Export to CSV or Quick Export to Excel (.xlsx), and pick a file name.
 
-> This project is not affiliated with or endorsed by Oracle. "Oracle" and "SQL Developer" are trademarks of
-> Oracle and/or its affiliates. It is an independent open-source extension and contains no Oracle code.
+This project is not affiliated with or endorsed by Oracle. "Oracle" and "SQL Developer" are trademarks of Oracle and/or its affiliates.
 
 ## Why
 
