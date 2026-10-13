@@ -33,6 +33,8 @@ import org.apache.poi.xssf.streaming.SXSSFWorkbook;
  *       {@link ExportResult#truncatedCells()}.</li>
  *   <li>When a sheet reaches Excel's row limit the export continues on a new sheet, so
  *       no rows are dropped.</li>
+ *   <li>If a query is given, it goes on a second worksheet named "Query", one line per row.
+ *       Cells hold plain text, so a line starting with {@code =} is never evaluated.</li>
  * </ul>
  */
 public final class XlsxWriter {
@@ -46,6 +48,8 @@ public final class XlsxWriter {
     private static final int ROW_WINDOW = 100;
     private static final int MIN_WIDTH = 8;
     private static final int MAX_WIDTH = 60;
+    private static final String QUERY_SHEET = "Query";
+    private static final int QUERY_COLUMN_CHARS = 100;
     private static final int DATE_CHARS = 10;
     private static final int DATE_TIME_CHARS = 19;
     private static final int BOOLEAN_CHARS = 5;
@@ -53,17 +57,27 @@ public final class XlsxWriter {
     private static final LocalDate EARLIEST_EXCEL_DATE = LocalDate.of(1900, 3, 1);
 
     private final int maxRowsPerSheet;
+    private final String query;
 
     public XlsxWriter() {
-        this(EXCEL_MAX_ROWS);
+        this(null);
+    }
+
+    /**
+     * @param query SQL text to put on a second worksheet named "Query", one line per row;
+     *              {@code null} or blank for no such worksheet
+     */
+    public XlsxWriter(String query) {
+        this(EXCEL_MAX_ROWS, query);
     }
 
     /** Package-private so tests can exercise sheet rollover without a million rows. */
-    XlsxWriter(int maxRowsPerSheet) {
+    XlsxWriter(int maxRowsPerSheet, String query) {
         if (maxRowsPerSheet < 2) {
             throw new IllegalArgumentException("maxRowsPerSheet must be >= 2");
         }
         this.maxRowsPerSheet = maxRowsPerSheet;
+        this.query = query == null || query.isBlank() ? null : query.strip();
     }
 
     /** Writes the workbook to {@code out}; the stream is not closed. */
@@ -81,7 +95,9 @@ public final class XlsxWriter {
             String[] header = HeaderNames.unique(model);
             SheetState sheet = newSheet(wb, styles, header, 1);
             int sheets = 1;
-            long truncated = 0;
+            // Created right after the first data sheet so it stays the second sheet even when
+            // the data rolls over onto further sheets.
+            long truncated = query == null ? 0 : writeQuerySheet(wb);
 
             try (ExportModel.RowCursor cursor = model.openRows()) {
                 while (cursor.next()) {
@@ -127,6 +143,25 @@ public final class XlsxWriter {
         }
         sheet.createFreezePane(0, 1);
         return new SheetState(sheet, widths);
+    }
+
+    /** Writes the query one line per row and returns how many lines had to be cut to the cell limit. */
+    private long writeQuerySheet(SXSSFWorkbook wb) {
+        SXSSFSheet sheet = wb.createSheet(QUERY_SHEET);
+        sheet.setColumnWidth(0, QUERY_COLUMN_CHARS * 256);
+        long truncated = 0;
+        int rowIndex = 0;
+        for (String line : query.split("\r\n|\r|\n", -1)) {
+            Row row = sheet.createRow(rowIndex++);
+            if (line.isEmpty()) {
+                continue;
+            }
+            if (line.length() > EXCEL_MAX_CELL_CHARS) {
+                truncated++;
+            }
+            row.createCell(0).setCellValue(truncate(line));
+        }
+        return truncated;
     }
 
     private static void finish(SheetState s, int cols) {

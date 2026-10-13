@@ -131,6 +131,6 @@ final class ExportJob implements Runnable, ExportControl {
     private ExportResult writeTo(JdbcExportModel model, OutputStream out) throws IOException {
         return format == ExportFormat.CSV
                 ? new CsvWriter(settings).write(model, out, this)
-                : new XlsxWriter().write(model, out, this);
+                : new XlsxWriter(settings.querySheet() ? source.sql() : null).write(model, out, this);
     }
 }

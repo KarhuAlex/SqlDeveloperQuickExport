@@ -168,7 +168,7 @@ class XlsxWriterTest {
             rows.add(row(i));
         }
         // header + 2 data rows per sheet -> 3 sheets for 5 rows
-        Written w = export(new XlsxWriter(3), new ListModel(new String[] {"N"}, rows));
+        Written w = export(new XlsxWriter(3, null), new ListModel(new String[] {"N"}, rows));
         assertEquals(3, w.result.sheets());
         assertEquals(5, w.result.rows());
         assertEquals(3, w.wb.getNumberOfSheets());
@@ -214,8 +214,66 @@ class XlsxWriterTest {
     }
 
     @Test
+    void queryGoesOnASecondSheetOneLinePerRow() throws IOException {
+        String sql = "select a,\r\n  b\nfrom t\n\nwhere a = 1;\n";
+        Written w = export(new XlsxWriter(sql), ListModel.of(new String[] {"A"}, row(1)));
+
+        assertEquals(2, w.wb.getNumberOfSheets());
+        assertEquals("Data", w.wb.getSheetName(0));
+        assertEquals("Query", w.wb.getSheetName(1));
+        assertEquals(1, w.result.sheets(), "the query sheet is not a data sheet");
+
+        XSSFSheet query = w.wb.getSheetAt(1);
+        assertEquals(4, query.getLastRowNum());
+        assertEquals("select a,", query.getRow(0).getCell(0).getStringCellValue());
+        assertEquals("  b", query.getRow(1).getCell(0).getStringCellValue(), "indentation is kept");
+        assertEquals("from t", query.getRow(2).getCell(0).getStringCellValue());
+        assertNull(query.getRow(3).getCell(0), "a blank line stays blank");
+        assertEquals("where a = 1;", query.getRow(4).getCell(0).getStringCellValue());
+    }
+
+    @Test
+    void queryTextIsNeverEvaluatedAsAFormula() throws IOException {
+        Written w = export(new XlsxWriter("=1+1\n-5\n@SUM(A1)"), ListModel.of(new String[] {"A"}));
+        XSSFSheet query = w.wb.getSheetAt(1);
+        for (int r = 0; r <= 2; r++) {
+            assertEquals(CellType.STRING, query.getRow(r).getCell(0).getCellType());
+        }
+        assertEquals("=1+1", query.getRow(0).getCell(0).getStringCellValue());
+    }
+
+    @Test
+    void noQuerySheetWhenNoQueryIsGiven() throws IOException {
+        assertEquals(1, export(new XlsxWriter(), ListModel.of(new String[] {"A"})).wb.getNumberOfSheets());
+        assertEquals(1, export(new XlsxWriter(null), ListModel.of(new String[] {"A"})).wb.getNumberOfSheets());
+        assertEquals(1, export(new XlsxWriter(" \n\t "), ListModel.of(new String[] {"A"})).wb.getNumberOfSheets());
+    }
+
+    @Test
+    void querySheetStaysSecondWhenTheDataRollsOverToMoreSheets() throws IOException {
+        List<Object[]> rows = new ArrayList<>();
+        for (int i = 1; i <= 5; i++) {
+            rows.add(row(i));
+        }
+        Written w = export(new XlsxWriter(3, "select 1"), new ListModel(new String[] {"N"}, rows));
+        assertEquals(4, w.wb.getNumberOfSheets());
+        assertEquals("Data", w.wb.getSheetName(0));
+        assertEquals("Query", w.wb.getSheetName(1));
+        assertEquals("Data (2)", w.wb.getSheetName(2));
+        assertEquals(3, w.result.sheets());
+    }
+
+    @Test
+    void anOverlongQueryLineIsCutAndCounted() throws IOException {
+        String sql = "select 1\n" + "x".repeat(XlsxWriter.EXCEL_MAX_CELL_CHARS + 10);
+        Written w = export(new XlsxWriter(sql), ListModel.of(new String[] {"A"}));
+        assertEquals(1, w.result.truncatedCells());
+        assertEquals(XlsxWriter.EXCEL_MAX_CELL_CHARS, w.wb.getSheetAt(1).getRow(1).getCell(0).getStringCellValue().length());
+    }
+
+    @Test
     void rejectsNonsenseSheetLimit() {
-        assertThrows(IllegalArgumentException.class, () -> new XlsxWriter(1));
+        assertThrows(IllegalArgumentException.class, () -> new XlsxWriter(1, null));
     }
 
     @Test

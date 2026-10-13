@@ -18,6 +18,7 @@ every time. Usually you just want this result as CSV or Excel in a folder.
 - A file chooser that opens in the folder you used last, with a name like `export_20261013_142530.csv`.
   Replacing an existing file asks first.
 - All rows of the query, including those the grid has not fetched yet.
+- In Excel exports, the query on a second sheet named Query.
 - A background export with a progress window and a Cancel button. A cancelled or failed export never
   leaves a half-written file and never damages an existing one.
 - A completion message with an Open folder button, and plain-language errors such as a file locked by

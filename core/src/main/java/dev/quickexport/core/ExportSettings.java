@@ -11,6 +11,7 @@ import java.util.Properties;
  * csv.decimalSeparator = .      (. or ,)
  * csv.bom              = true
  * lob.maxChars         = 32000  (text of a CLOB is exported at most this long)
+ * xlsx.querySheet      = true   (put the query on a second worksheet of Excel exports)
  * </pre>
  */
 public final class ExportSettings {
@@ -23,8 +24,13 @@ public final class ExportSettings {
     private final char decimalSeparator;
     private final boolean bom;
     private final int lobMaxChars;
+    private final boolean querySheet;
 
     public ExportSettings(char delimiter, char decimalSeparator, boolean bom, int lobMaxChars) {
+        this(delimiter, decimalSeparator, bom, lobMaxChars, true);
+    }
+
+    public ExportSettings(char delimiter, char decimalSeparator, boolean bom, int lobMaxChars, boolean querySheet) {
         if (!isValidDelimiter(delimiter)) {
             throw new IllegalArgumentException("Invalid CSV delimiter: " + (int) delimiter);
         }
@@ -38,6 +44,7 @@ public final class ExportSettings {
         this.decimalSeparator = decimalSeparator;
         this.bom = bom;
         this.lobMaxChars = lobMaxChars;
+        this.querySheet = querySheet;
     }
 
     public static ExportSettings defaults() {
@@ -53,7 +60,8 @@ public final class ExportSettings {
         }
         boolean bom = !"false".equalsIgnoreCase(trim(p.getProperty("csv.bom")));
         int lobMaxChars = parseNonNegative(p.getProperty("lob.maxChars"), DEFAULT_LOB_MAX_CHARS);
-        return new ExportSettings(delimiter, decimal, bom, lobMaxChars);
+        boolean querySheet = !"false".equalsIgnoreCase(trim(p.getProperty("xlsx.querySheet")));
+        return new ExportSettings(delimiter, decimal, bom, lobMaxChars, querySheet);
     }
 
     public char delimiter() {
@@ -70,6 +78,10 @@ public final class ExportSettings {
 
     public int lobMaxChars() {
         return lobMaxChars;
+    }
+
+    public boolean querySheet() {
+        return querySheet;
     }
 
     private static boolean isValidDelimiter(char c) {

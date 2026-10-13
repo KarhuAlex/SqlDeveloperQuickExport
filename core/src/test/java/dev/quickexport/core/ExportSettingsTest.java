@@ -64,6 +64,13 @@ class ExportSettingsTest {
     }
 
     @Test
+    void querySheetIsOnByDefaultAndCanBeDisabled() {
+        assertTrue(parse().querySheet());
+        assertFalse(parse("xlsx.querySheet", "false").querySheet());
+        assertTrue(parse("xlsx.querySheet", "yes please").querySheet());
+    }
+
+    @Test
     void constructorRejectsInvalidCombinations() {
         assertThrows(IllegalArgumentException.class, () -> new ExportSettings('"', '.', true, 1));
         assertThrows(IllegalArgumentException.class, () -> new ExportSettings('\n', '.', true, 1));
