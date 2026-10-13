@@ -57,10 +57,7 @@ public final class JdbcExportModel implements ExportModel {
         }
     }
 
-    /**
-     * CLOB/LONG values cut to {@code lobMaxChars} so far. The model is read from a single
-     * thread, which is also the one that should call this.
-     */
+    /** CLOB/LONG values cut to {@code lobMaxChars} so far. Not thread-safe: call it from the reading thread. */
     public long getTruncatedLobs() {
         return truncatedLobs;
     }

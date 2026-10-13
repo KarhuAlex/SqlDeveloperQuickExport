@@ -191,7 +191,7 @@ public final class XlsxWriter {
             if (!isExactInExcel(n)) {
                 return writeText(row, col, ValueText.text(n, '.'), measure);
             }
-            // Float.doubleValue() would turn 0.1f into 0.10000000149...; go via its decimal text.
+            // Parse the decimal text: Float.doubleValue() gives 0.10000000149 for 0.1f.
             row.createCell(col).setCellValue(n instanceof Float ? Double.parseDouble(n.toString()) : n.doubleValue());
             return measure ? ValueText.text(n, '.').length() : 0;
         }

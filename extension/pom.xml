@@ -133,11 +133,11 @@
             <configuration>
               <createDependencyReducedPom>false</createDependencyReducedPom>
               <!--
-                NOT relocated on purpose: org.openxmlformats, org.etsi, org.w3.x2000 and
-                com.microsoft.schemas. XMLBeans' binary schema files (.xsb) store the original
-                class names of these generated types, so moving them makes XMLBeans fall back to
-                generic objects and fail with ClassCastException. They stay private to this
-                bundle (we require none of Oracle's POI bundles), so they cannot clash.
+                Not relocated: org.openxmlformats, org.etsi, org.w3.x2000 and com.microsoft.schemas.
+                XMLBeans' binary schema files (.xsb) store the original class names of these
+                generated types, so after relocation XMLBeans falls back to generic objects and
+                throws ClassCastException. The packages stay private to this bundle, which requires
+                none of Oracle's POI bundles, so they cannot clash.
               -->
               <relocations>
                 <relocation><pattern>org.apache.poi</pattern><shadedPattern>${shaded.prefix}.org.apache.poi</shadedPattern></relocation>
