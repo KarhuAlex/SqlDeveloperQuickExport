@@ -115,12 +115,14 @@ final class ProgressDialog extends JDialog implements ExportJob.Listener {
             message.append("\n\n").append(shortenedValues)
                     .append(" long text value(s) were shortened to fit Excel's cell limit or the lob.maxChars setting.");
         }
-        Object[] options = {"Open folder", "Close"};
+        Object[] options = {"Open file", "Open folder", "Close"};
         int choice = JOptionPane.showOptionDialog(owner, message.toString(), ExportUi.TITLE,
                 JOptionPane.DEFAULT_OPTION,
                 shortenedValues > 0 ? JOptionPane.WARNING_MESSAGE : JOptionPane.INFORMATION_MESSAGE,
                 null, options, options[0]);
         if (choice == 0) {
+            openFile();
+        } else if (choice == 1) {
             openFolder();
         }
     }
@@ -138,6 +140,16 @@ final class ProgressDialog extends JDialog implements ExportJob.Listener {
         ended = true;
         dispose();
         ExportUi.showError(owner, ErrorMessages.describe(error));
+    }
+
+    private void openFile() {
+        try {
+            Desktop.getDesktop().open(target.toFile());
+        } catch (IOException | RuntimeException e) {
+            LOG.log(Level.WARNING, "Could not open the file", e);
+            ExportUi.showError(owner, "Could not open the file:\n" + target
+                    + "\nCheck that a program is set up to open this file type.");
+        }
     }
 
     private void openFolder() {

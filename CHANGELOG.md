@@ -10,7 +10,7 @@ All notable changes to this project are documented here. The format follows
   grid's right-click menu. Tested on SQL Developer 24.3.1.347.1826.
 - A file chooser with a timestamped default name. It remembers the last folder and asks before replacing a file.
 - Export of the complete result: the grid's query runs again on a separate session and streams to the file.
-- A background export with a progress window and Cancel, a completion message with Open folder, and readable
+- A background export with a progress window and Cancel, a completion message with Open file and Open folder, and readable
   errors for a file locked by Excel, a missing permission and a failed query. A cancelled or failed export
   leaves no partial file and does not touch an existing one.
 - A percentage in the progress window, for example `3 000 / 10 000 rows (30 %)`. The total comes from a row count that
