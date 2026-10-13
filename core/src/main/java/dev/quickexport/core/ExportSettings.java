@@ -12,6 +12,8 @@ import java.util.Properties;
  * csv.bom              = true
  * lob.maxChars         = 32000  (text of a CLOB is exported at most this long)
  * xlsx.querySheet      = true   (put the query on a second worksheet of Excel exports)
+ * progress.countRows   = true   (run a row count alongside the export to show a percentage;
+ *                                the count runs the query once more on a second session)
  * </pre>
  */
 public final class ExportSettings {
@@ -25,12 +27,15 @@ public final class ExportSettings {
     private final boolean bom;
     private final int lobMaxChars;
     private final boolean querySheet;
+    private final boolean countRows;
 
+    /** Creates settings with the query sheet and the row count switched on. */
     public ExportSettings(char delimiter, char decimalSeparator, boolean bom, int lobMaxChars) {
-        this(delimiter, decimalSeparator, bom, lobMaxChars, true);
+        this(delimiter, decimalSeparator, bom, lobMaxChars, true, true);
     }
 
-    public ExportSettings(char delimiter, char decimalSeparator, boolean bom, int lobMaxChars, boolean querySheet) {
+    private ExportSettings(char delimiter, char decimalSeparator, boolean bom, int lobMaxChars,
+            boolean querySheet, boolean countRows) {
         if (!isValidDelimiter(delimiter)) {
             throw new IllegalArgumentException("Invalid CSV delimiter: " + (int) delimiter);
         }
@@ -45,6 +50,15 @@ public final class ExportSettings {
         this.bom = bom;
         this.lobMaxChars = lobMaxChars;
         this.querySheet = querySheet;
+        this.countRows = countRows;
+    }
+
+    public ExportSettings withQuerySheet(boolean value) {
+        return new ExportSettings(delimiter, decimalSeparator, bom, lobMaxChars, value, countRows);
+    }
+
+    public ExportSettings withRowCount(boolean value) {
+        return new ExportSettings(delimiter, decimalSeparator, bom, lobMaxChars, querySheet, value);
     }
 
     public static ExportSettings defaults() {
@@ -60,8 +74,9 @@ public final class ExportSettings {
         }
         boolean bom = !"false".equalsIgnoreCase(trim(p.getProperty("csv.bom")));
         int lobMaxChars = parseNonNegative(p.getProperty("lob.maxChars"), DEFAULT_LOB_MAX_CHARS);
-        boolean querySheet = !"false".equalsIgnoreCase(trim(p.getProperty("xlsx.querySheet")));
-        return new ExportSettings(delimiter, decimal, bom, lobMaxChars, querySheet);
+        return new ExportSettings(delimiter, decimal, bom, lobMaxChars)
+                .withQuerySheet(!"false".equalsIgnoreCase(trim(p.getProperty("xlsx.querySheet"))))
+                .withRowCount(!"false".equalsIgnoreCase(trim(p.getProperty("progress.countRows"))));
     }
 
     public char delimiter() {
@@ -82,6 +97,10 @@ public final class ExportSettings {
 
     public boolean querySheet() {
         return querySheet;
+    }
+
+    public boolean countRows() {
+        return countRows;
     }
 
     private static boolean isValidDelimiter(char c) {

@@ -30,8 +30,14 @@ final class ProgressDialog extends JDialog implements ExportJob.Listener {
 
     private final transient Component owner;
     private final transient Path target;
+    private static final int BAR_STEPS = 1000;
+
     private final JLabel status = new JLabel("Running the query\u2026");
     private final JButton cancel = new JButton("Cancel");
+    private final JProgressBar bar = new JProgressBar(0, BAR_STEPS);
+    private long written;
+    private long total = -1;
+    private boolean ended;
 
     ProgressDialog(Component owner, Path target, ExportFormat format, Runnable onCancel) {
         super(owner instanceof Frame ? (Frame) owner : null, ExportUi.TITLE, false);
@@ -39,7 +45,6 @@ final class ProgressDialog extends JDialog implements ExportJob.Listener {
         this.target = target;
         setDefaultCloseOperation(DO_NOTHING_ON_CLOSE);
 
-        JProgressBar bar = new JProgressBar();
         bar.setIndeterminate(true);
 
         JPanel center = new JPanel(new BorderLayout(0, 8));
@@ -65,13 +70,39 @@ final class ProgressDialog extends JDialog implements ExportJob.Listener {
 
     @Override
     public void rows(long rowsWritten) {
-        if (cancel.isEnabled()) {
-            status.setText(NumberFormat.getIntegerInstance().format(rowsWritten) + " rows written\u2026");
+        written = rowsWritten;
+        showProgress();
+    }
+
+    @Override
+    public void total(long totalRows) {
+        if (!ended && totalRows > 0) {
+            total = totalRows;
+            showProgress();
+        }
+    }
+
+    /** Shows "written / total (percent)" while the total is known and not exceeded, otherwise just the count. */
+    private void showProgress() {
+        if (ended || !cancel.isEnabled()) { // after Cancel the label keeps saying "Cancelling"
+            return;
+        }
+        NumberFormat count = NumberFormat.getIntegerInstance();
+        if (total > 0 && written <= total) {
+            double fraction = (double) written / total;
+            bar.setIndeterminate(false);
+            bar.setValue((int) Math.round(fraction * BAR_STEPS));
+            status.setText(count.format(written) + " / " + count.format(total) + " rows ("
+                    + NumberFormat.getPercentInstance().format(fraction) + ")");
+        } else {
+            bar.setIndeterminate(true);
+            status.setText(count.format(written) + " rows written\u2026");
         }
     }
 
     @Override
     public void finished(ExportResult result, long shortenedValues) {
+        ended = true;
         dispose();
         StringBuilder message = new StringBuilder()
                 .append(NumberFormat.getIntegerInstance().format(result.rows())).append(" rows exported to\n")
@@ -96,6 +127,7 @@ final class ProgressDialog extends JDialog implements ExportJob.Listener {
 
     @Override
     public void cancelled() {
+        ended = true;
         dispose();
         JOptionPane.showMessageDialog(owner, "Export cancelled. No file was written.", ExportUi.TITLE,
                 JOptionPane.INFORMATION_MESSAGE);
@@ -103,6 +135,7 @@ final class ProgressDialog extends JDialog implements ExportJob.Listener {
 
     @Override
     public void failed(Throwable error) {
+        ended = true;
         dispose();
         ExportUi.showError(owner, ErrorMessages.describe(error));
     }

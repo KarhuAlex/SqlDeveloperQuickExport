@@ -64,6 +64,15 @@ class ExportSettingsTest {
     }
 
     @Test
+    void rowCountIsOnByDefaultAndCanBeDisabled() {
+        assertTrue(parse().countRows());
+        assertFalse(parse("progress.countRows", "false").countRows());
+        assertTrue(parse("progress.countRows", "maybe").countRows());
+        assertFalse(parse().withRowCount(false).countRows());
+        assertTrue(parse().withRowCount(false).querySheet(), "changing one switch keeps the others");
+    }
+
+    @Test
     void querySheetIsOnByDefaultAndCanBeDisabled() {
         assertTrue(parse().querySheet());
         assertFalse(parse("xlsx.querySheet", "false").querySheet());

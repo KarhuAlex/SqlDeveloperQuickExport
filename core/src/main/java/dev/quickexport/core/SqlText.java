@@ -7,6 +7,14 @@ public final class SqlText {
     }
 
     /**
+     * Wraps a query in a row count. The query and the closing parenthesis sit on their own lines,
+     * so a trailing {@code --} comment in the query cannot swallow the parenthesis.
+     */
+    public static String countQuery(String sql) {
+        return "select count(*) from (\n" + stripTerminator(sql) + "\n)";
+    }
+
+    /**
      * Removes statement terminators that a worksheet accepts but JDBC rejects: trailing
      * semicolons and a lone {@code /} on the last line, in any combination.
      */

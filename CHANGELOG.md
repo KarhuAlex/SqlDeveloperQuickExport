@@ -13,6 +13,8 @@ All notable changes to this project are documented here. The format follows
 - A background export with a progress window and Cancel, a completion message with Open folder, and readable
   errors for a file locked by Excel, a missing permission and a failed query. A cancelled or failed export
   leaves no partial file and does not touch an existing one.
+- A percentage in the progress window, for example `3 000 / 10 000 rows (30 %)`. The total comes from a row count that
+  runs on a second session alongside the export and appears when it is ready. `progress.countRows = false` turns it off.
 - The query on a second worksheet named Query in Excel exports, one line per row. The setting `xlsx.querySheet = false` turns it off.
 - A settings file for the delimiter, decimal separator, BOM and LOB length, in the SQL Developer user directory.
 - An install zip for Help > Check for Updates > Install From Local File. It includes a first-run hook that

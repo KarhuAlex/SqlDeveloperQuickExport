@@ -19,7 +19,7 @@ every time. Usually you just want this result as CSV or Excel in a folder.
   Replacing an existing file asks first.
 - All rows of the query, including those the grid has not fetched yet.
 - In Excel exports, the query on a second sheet named Query.
-- A background export with a progress window and a Cancel button. A cancelled or failed export never
+- A background export with a progress window that shows rows and percent, and a Cancel button. A cancelled or failed export never
   leaves a half-written file and never damages an existing one.
 - A completion message with an Open folder button, and plain-language errors such as a file locked by
   Excel, a missing permission or a failed query.

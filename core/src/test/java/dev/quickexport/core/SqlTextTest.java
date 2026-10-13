@@ -7,6 +7,17 @@ import org.junit.jupiter.api.Test;
 class SqlTextTest {
 
     @Test
+    void countQueryWrapsTheStatementWithoutItsTerminator() {
+        assertEquals("select count(*) from (\nselect * from t\n)", SqlText.countQuery("select * from t;"));
+    }
+
+    @Test
+    void countQueryKeepsTheClosingParenthesisOutOfALineComment() {
+        String sql = SqlText.countQuery("select * from t -- latest rows");
+        assertEquals("select count(*) from (\nselect * from t -- latest rows\n)", sql);
+    }
+
+    @Test
     void leavesPlainSqlAlone() {
         assertEquals("select * from t", SqlText.stripTerminator("select * from t"));
     }
