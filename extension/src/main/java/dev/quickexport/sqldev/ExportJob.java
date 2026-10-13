@@ -1,5 +1,7 @@
 package dev.quickexport.sqldev;
 
+import java.io.IOException;
+import java.io.OutputStream;
 import java.nio.file.Path;
 import java.sql.Connection;
 import java.sql.ResultSet;
@@ -21,11 +23,26 @@ import dev.quickexport.core.XlsxWriter;
 import oracle.dbtools.raptor.utils.Connections;
 
 /**
- * One export, run on its own thread. The grid's query is executed again on a separate
- * session (so the grid and the user's worksheet session are left alone), and the rows are
- * streamed straight into a temporary file that replaces the target only when complete.
+ * One export, run on its own thread. The grid's query is executed again on a separate session
+ * (so the grid and the user's worksheet session are left alone) and the rows are streamed into a
+ * temporary file that replaces the target only when the export is complete.
  */
 final class ExportJob implements Runnable, ExportControl {
+
+    /** Callbacks from the export thread, always delivered on the event thread. */
+    interface Listener {
+        void rows(long rowsWritten);
+
+        /** @param shortenedValues long text values that were cut to fit the file or the settings */
+        void finished(ExportResult result, long shortenedValues);
+
+        void cancelled();
+
+        void failed(Throwable error);
+    }
+
+    private record Outcome(ExportResult result, long shortenedValues) {
+    }
 
     private static final Logger LOG = Logger.getLogger("dev.quickexport");
     private static final int FETCH_SIZE = 1000;
@@ -34,32 +51,31 @@ final class ExportJob implements Runnable, ExportControl {
     private final ExportFormat format;
     private final Path target;
     private final ExportSettings settings;
-    private final ExportUi.Progress progress;
-
+    private volatile Listener listener;
     private volatile boolean cancelled;
     private volatile Statement running;
 
-    ExportJob(GridSource source, ExportFormat format, Path target, ExportSettings settings, ExportUi.Progress progress) {
+    ExportJob(GridSource source, ExportFormat format, Path target, ExportSettings settings) {
         this.source = source;
         this.format = format;
         this.target = target;
         this.settings = settings;
-        this.progress = progress;
     }
 
-    void start() {
-        Thread t = new Thread(this, "Quick Export");
-        t.setDaemon(true);
-        t.start();
+    void start(Listener listener) {
+        this.listener = listener;
+        Thread thread = new Thread(this, "Quick Export");
+        thread.setDaemon(true);
+        thread.start();
     }
 
     /** Called from the event thread when the user presses Cancel. */
     void cancel() {
         cancelled = true;
-        Statement st = running;
-        if (st != null) {
+        Statement statement = running;
+        if (statement != null) {
             try {
-                st.cancel(); // frees a long-running first fetch; rows are also polled in the writer
+                statement.cancel(); // frees a slow query; the writer also polls the flag per row
             } catch (SQLException e) {
                 LOG.log(Level.FINE, "Statement cancel failed", e);
             }
@@ -73,47 +89,46 @@ final class ExportJob implements Runnable, ExportControl {
 
     @Override
     public void progress(long rowsWritten) {
-        SwingUtilities.invokeLater(() -> progress.rows(rowsWritten));
+        SwingUtilities.invokeLater(() -> listener.rows(rowsWritten));
     }
 
     @Override
     public void run() {
         try {
-            AtomicFiles.checkWritable(target); // fail fast, e.g. when Excel has the file open
-            ExportResult result;
-            long truncatedLobs;
-            Connection conn = Connections.getInstance().cloneConnection(source.connectionName);
-            try (Connection c = conn; Statement st = c.createStatement()) {
-                st.setFetchSize(FETCH_SIZE);
-                running = st;
-                if (cancelled) {
-                    throw new ExportCancelledException();
-                }
-                try (ResultSet rs = st.executeQuery(source.sql)) {
-                    JdbcExportModel model = new JdbcExportModel(rs, settings.lobMaxChars());
-                    ExportResult[] holder = new ExportResult[1];
-                    AtomicFiles.write(target, out -> holder[0] = writeTo(model, out));
-                    result = holder[0];
-                    truncatedLobs = model.getTruncatedLobs();
-                }
-            } finally {
-                running = null;
-            }
-            long lobs = truncatedLobs;
-            SwingUtilities.invokeLater(() -> progress.finished(result, lobs));
+            Outcome outcome = execute();
+            SwingUtilities.invokeLater(() -> listener.finished(outcome.result(), outcome.shortenedValues()));
         } catch (ExportCancelledException e) {
-            SwingUtilities.invokeLater(progress::cancelled);
+            SwingUtilities.invokeLater(listener::cancelled);
         } catch (Throwable t) {
-            if (cancelled) { // a cancel() on the statement surfaces as an SQLException
-                SwingUtilities.invokeLater(progress::cancelled);
+            if (cancelled) { // cancelling the statement surfaces as an SQLException
+                SwingUtilities.invokeLater(listener::cancelled);
                 return;
             }
             LOG.log(Level.WARNING, "Quick Export failed", t);
-            SwingUtilities.invokeLater(() -> progress.failed(t));
+            SwingUtilities.invokeLater(() -> listener.failed(t));
         }
     }
 
-    private ExportResult writeTo(JdbcExportModel model, java.io.OutputStream out) throws java.io.IOException {
+    private Outcome execute() throws Exception {
+        AtomicFiles.checkWritable(target); // fail fast, e.g. when Excel has the file open
+        try (Connection connection = Connections.getInstance().cloneConnection(source.connectionName());
+                Statement statement = connection.createStatement()) {
+            statement.setFetchSize(FETCH_SIZE);
+            running = statement;
+            if (cancelled) {
+                throw new ExportCancelledException();
+            }
+            try (ResultSet rows = statement.executeQuery(source.sql())) {
+                JdbcExportModel model = new JdbcExportModel(rows, settings.lobMaxChars());
+                ExportResult result = AtomicFiles.write(target, out -> writeTo(model, out));
+                return new Outcome(result, result.truncatedCells() + model.getTruncatedLobs());
+            }
+        } finally {
+            running = null;
+        }
+    }
+
+    private ExportResult writeTo(JdbcExportModel model, OutputStream out) throws IOException {
         return format == ExportFormat.CSV
                 ? new CsvWriter(settings).write(model, out, this)
                 : new XlsxWriter().write(model, out, this);
