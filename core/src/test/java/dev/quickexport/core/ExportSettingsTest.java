@@ -64,6 +64,16 @@ class ExportSettingsTest {
     }
 
     @Test
+    void clipboardLimitHasADefaultAndAcceptsOnlyNonNegativeNumbers() {
+        assertEquals(20_000_000, parse().clipboardMaxChars());
+        assertEquals(5_000, parse("clipboard.maxChars", "5000").clipboardMaxChars());
+        assertEquals(20_000_000, parse("clipboard.maxChars", "-1").clipboardMaxChars());
+        assertEquals(20_000_000, parse("clipboard.maxChars", "lots").clipboardMaxChars());
+        assertEquals(5_000, parse().withClipboardMaxChars(5_000).clipboardMaxChars());
+        assertTrue(parse().withClipboardMaxChars(5_000).countRows(), "changing one setting keeps the others");
+    }
+
+    @Test
     void rowCountIsOnByDefaultAndCanBeDisabled() {
         assertTrue(parse().countRows());
         assertFalse(parse("progress.countRows", "false").countRows());

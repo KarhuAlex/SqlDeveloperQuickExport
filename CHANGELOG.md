@@ -5,6 +5,11 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Added
+- Quick Export to Clipboard (CSV) on the result grid's right-click menu. It copies the whole result as CSV text, with the
+  delimiter and decimal separator from the settings and no byte order mark. The text is held in memory, so a result larger than
+  `clipboard.maxChars` (20 million characters by default) is refused with a message that points to the file export.
+
 ## [0.1.0] - 2026-10-13
 
 ### Added

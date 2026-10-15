@@ -14,6 +14,7 @@ import java.util.Properties;
  * xlsx.querySheet      = true   (put the query on a second worksheet of Excel exports)
  * progress.countRows   = true   (run a row count alongside the export to show a percentage;
  *                                the count runs the query once more on a second session)
+ * clipboard.maxChars   = 20000000  (largest result that can be copied to the clipboard)
  * </pre>
  */
 public final class ExportSettings {
@@ -21,6 +22,7 @@ public final class ExportSettings {
     public static final char DEFAULT_DELIMITER = ';';
     public static final char DEFAULT_DECIMAL_SEPARATOR = '.';
     public static final int DEFAULT_LOB_MAX_CHARS = 32_000;
+    public static final int DEFAULT_CLIPBOARD_MAX_CHARS = 20_000_000;
 
     private final char delimiter;
     private final char decimalSeparator;
@@ -28,14 +30,15 @@ public final class ExportSettings {
     private final int lobMaxChars;
     private final boolean querySheet;
     private final boolean countRows;
+    private final int clipboardMaxChars;
 
     /** Creates settings with the query sheet and the row count switched on. */
     public ExportSettings(char delimiter, char decimalSeparator, boolean bom, int lobMaxChars) {
-        this(delimiter, decimalSeparator, bom, lobMaxChars, true, true);
+        this(delimiter, decimalSeparator, bom, lobMaxChars, true, true, DEFAULT_CLIPBOARD_MAX_CHARS);
     }
 
     private ExportSettings(char delimiter, char decimalSeparator, boolean bom, int lobMaxChars,
-            boolean querySheet, boolean countRows) {
+            boolean querySheet, boolean countRows, int clipboardMaxChars) {
         if (!isValidDelimiter(delimiter)) {
             throw new IllegalArgumentException("Invalid CSV delimiter: " + (int) delimiter);
         }
@@ -45,20 +48,28 @@ public final class ExportSettings {
         if (lobMaxChars < 0) {
             throw new IllegalArgumentException("lobMaxChars must be >= 0");
         }
+        if (clipboardMaxChars < 0) {
+            throw new IllegalArgumentException("clipboardMaxChars must be >= 0");
+        }
         this.delimiter = delimiter;
         this.decimalSeparator = decimalSeparator;
         this.bom = bom;
         this.lobMaxChars = lobMaxChars;
         this.querySheet = querySheet;
         this.countRows = countRows;
+        this.clipboardMaxChars = clipboardMaxChars;
     }
 
     public ExportSettings withQuerySheet(boolean value) {
-        return new ExportSettings(delimiter, decimalSeparator, bom, lobMaxChars, value, countRows);
+        return new ExportSettings(delimiter, decimalSeparator, bom, lobMaxChars, value, countRows, clipboardMaxChars);
     }
 
     public ExportSettings withRowCount(boolean value) {
-        return new ExportSettings(delimiter, decimalSeparator, bom, lobMaxChars, querySheet, value);
+        return new ExportSettings(delimiter, decimalSeparator, bom, lobMaxChars, querySheet, value, clipboardMaxChars);
+    }
+
+    public ExportSettings withClipboardMaxChars(int value) {
+        return new ExportSettings(delimiter, decimalSeparator, bom, lobMaxChars, querySheet, countRows, value);
     }
 
     public static ExportSettings defaults() {
@@ -76,7 +87,8 @@ public final class ExportSettings {
         int lobMaxChars = parseNonNegative(p.getProperty("lob.maxChars"), DEFAULT_LOB_MAX_CHARS);
         return new ExportSettings(delimiter, decimal, bom, lobMaxChars)
                 .withQuerySheet(!"false".equalsIgnoreCase(trim(p.getProperty("xlsx.querySheet"))))
-                .withRowCount(!"false".equalsIgnoreCase(trim(p.getProperty("progress.countRows"))));
+                .withRowCount(!"false".equalsIgnoreCase(trim(p.getProperty("progress.countRows"))))
+                .withClipboardMaxChars(parseNonNegative(p.getProperty("clipboard.maxChars"), DEFAULT_CLIPBOARD_MAX_CHARS));
     }
 
     public char delimiter() {
@@ -101,6 +113,10 @@ public final class ExportSettings {
 
     public boolean countRows() {
         return countRows;
+    }
+
+    public int clipboardMaxChars() {
+        return clipboardMaxChars;
     }
 
     private static boolean isValidDelimiter(char c) {

@@ -1,8 +1,5 @@
 package dev.quickexport.sqldev;
 
-import java.io.IOException;
-import java.io.OutputStream;
-import java.nio.file.Path;
 import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -12,21 +9,18 @@ import java.util.logging.Logger;
 
 import javax.swing.SwingUtilities;
 
-import dev.quickexport.core.AtomicFiles;
-import dev.quickexport.core.CsvWriter;
 import dev.quickexport.core.ExportCancelledException;
 import dev.quickexport.core.ExportControl;
 import dev.quickexport.core.ExportResult;
 import dev.quickexport.core.ExportSettings;
 import dev.quickexport.core.JdbcExportModel;
 import dev.quickexport.core.SqlText;
-import dev.quickexport.core.XlsxWriter;
 import oracle.dbtools.raptor.utils.Connections;
 
 /**
  * One export, run on its own thread. The grid's query is executed again on a separate session
- * (so the grid and the user's worksheet session are left alone) and the rows are streamed into a
- * temporary file that replaces the target only when the export is complete.
+ * (so the grid and the user's worksheet session are left alone) and the rows are streamed to the
+ * output, which is a file or the clipboard.
  */
 final class ExportJob implements Runnable, ExportControl {
 
@@ -52,8 +46,7 @@ final class ExportJob implements Runnable, ExportControl {
     private static final int FETCH_SIZE = 1000;
 
     private final GridSource source;
-    private final ExportFormat format;
-    private final Path target;
+    private final ExportOutput output;
     private final ExportSettings settings;
     private volatile Listener listener;
     private volatile boolean cancelled;
@@ -61,10 +54,9 @@ final class ExportJob implements Runnable, ExportControl {
     private volatile boolean countStopped;
     private volatile Statement counting;
 
-    ExportJob(GridSource source, ExportFormat format, Path target, ExportSettings settings) {
+    ExportJob(GridSource source, ExportOutput output, ExportSettings settings) {
         this.source = source;
-        this.format = format;
-        this.target = target;
+        this.output = output;
         this.settings = settings;
     }
 
@@ -157,7 +149,7 @@ final class ExportJob implements Runnable, ExportControl {
     }
 
     private Outcome execute() throws Exception {
-        AtomicFiles.checkWritable(target); // fail fast, e.g. when Excel has the file open
+        output.check();
         try (Connection connection = Connections.getInstance().cloneConnection(source.connectionName());
                 Statement statement = connection.createStatement()) {
             statement.setFetchSize(FETCH_SIZE);
@@ -171,17 +163,11 @@ final class ExportJob implements Runnable, ExportControl {
             }
             try (ResultSet rows = statement.executeQuery(source.sql())) {
                 JdbcExportModel model = new JdbcExportModel(rows, settings.lobMaxChars());
-                ExportResult result = AtomicFiles.write(target, out -> writeTo(model, out));
+                ExportResult result = output.write(model, this);
                 return new Outcome(result, result.truncatedCells() + model.getTruncatedLobs());
             }
         } finally {
             running = null;
         }
-    }
-
-    private ExportResult writeTo(JdbcExportModel model, OutputStream out) throws IOException {
-        return format == ExportFormat.CSV
-                ? new CsvWriter(settings).write(model, out, this)
-                : new XlsxWriter(settings.querySheet() ? source.sql() : null).write(model, out, this);
     }
 }

@@ -9,16 +9,22 @@ import oracle.ide.Ide;
 import oracle.ide.controller.ContextMenu;
 import oracle.ide.controller.IdeAction;
 
-/** Adds "Quick Export to CSV" and "Quick Export to Excel (.xlsx)" to the result grid's popup menu. */
+/**
+ * Adds "Quick Export to CSV", "Quick Export to Excel (.xlsx)" and "Quick Export to Clipboard (CSV)"
+ * to the result grid's popup menu.
+ */
 final class QuickExportMenuItem extends GridContextMenuItem {
 
     private static final Logger LOG = Logger.getLogger("dev.quickexport");
     private static final QuickExportMenuItem INSTANCE = new QuickExportMenuItem();
+    private static final String CLIPBOARD_LABEL = "Quick Export to Clipboard (CSV)";
 
     private final int cmdCsv = Ide.findOrCreateCmdID("dev.quickexport.csv");
     private final int cmdXlsx = Ide.findOrCreateCmdID("dev.quickexport.xlsx");
+    private final int cmdClipboard = Ide.findOrCreateCmdID("dev.quickexport.clipboard");
     private IdeAction csvAction;
     private IdeAction xlsxAction;
+    private IdeAction clipboardAction;
 
     private QuickExportMenuItem() {
     }
@@ -38,21 +44,28 @@ final class QuickExportMenuItem extends GridContextMenuItem {
         if (csvAction == null) {
             csvAction = createAction(cmdCsv, ExportFormat.CSV.menuLabel, null);
             xlsxAction = createAction(cmdXlsx, ExportFormat.XLSX.menuLabel, null);
+            clipboardAction = createAction(cmdClipboard, CLIPBOARD_LABEL, null);
         }
         menu.addSeparator();
         menu.add(menu.createMenuItem(csvAction));
         menu.add(menu.createMenuItem(xlsxAction));
+        menu.add(menu.createMenuItem(clipboardAction));
     }
 
     @Override
     public boolean handleEvent(IdeAction action, Context context) {
-        ExportFormat format = formatOf(action);
-        if (format == null) {
+        int id = action.getCommandId();
+        if (!isOurs(id)) {
             return false;
         }
         setTableFromContext(context);
         try {
-            ExportUi.begin(GridSource.from(_table), format);
+            GridSource source = GridSource.from(_table);
+            if (id == cmdClipboard) {
+                ExportUi.beginClipboard(source);
+            } else {
+                ExportUi.beginFile(source, id == cmdCsv ? ExportFormat.CSV : ExportFormat.XLSX);
+            }
         } catch (GridSource.UnsupportedGridException e) {
             ExportUi.showError(null, e.getMessage());
         } catch (RuntimeException | LinkageError e) {
@@ -64,18 +77,14 @@ final class QuickExportMenuItem extends GridContextMenuItem {
 
     @Override
     public boolean update(IdeAction action, Context context) {
-        if (formatOf(action) == null) {
+        if (!isOurs(action.getCommandId())) {
             return false;
         }
         action.setEnabled(true);
         return true;
     }
 
-    private ExportFormat formatOf(IdeAction action) {
-        int id = action.getCommandId();
-        if (id == cmdCsv) {
-            return ExportFormat.CSV;
-        }
-        return id == cmdXlsx ? ExportFormat.XLSX : null;
+    private boolean isOurs(int commandId) {
+        return commandId == cmdCsv || commandId == cmdXlsx || commandId == cmdClipboard;
     }
 }

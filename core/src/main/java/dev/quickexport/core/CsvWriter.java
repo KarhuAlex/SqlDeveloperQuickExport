@@ -28,7 +28,14 @@ public final class CsvWriter {
         if (settings.bom()) {
             out.write(BOM);
         }
-        Writer w = new BufferedWriter(new OutputStreamWriter(out, StandardCharsets.UTF_8), 1 << 16);
+        return write(model, new BufferedWriter(new OutputStreamWriter(out, StandardCharsets.UTF_8), 1 << 16), control);
+    }
+
+    /**
+     * Writes everything to a character stream, which is flushed but not closed. No byte order
+     * mark is written, whatever the settings say: a BOM only means something in a file.
+     */
+    public ExportResult write(ExportModel model, Writer w, ExportControl control) throws IOException {
         int cols = model.getColumnCount();
         RowTicker ticker = new RowTicker(control);
 

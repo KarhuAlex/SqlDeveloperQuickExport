@@ -15,7 +15,7 @@ every time. Usually you just want this result as CSV or Excel in a folder.
 
 ## What you get
 
-- Two items on the result grid's right-click menu.
+- Three items on the result grid's right-click menu: CSV file, Excel file and CSV to the clipboard.
 - A file chooser that opens in the folder you used last, with a name like `export_20261013_142530.csv`.
   Replacing an existing file asks first.
 - All rows of the query, including those the grid has not fetched yet.
