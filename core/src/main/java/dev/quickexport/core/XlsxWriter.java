@@ -126,8 +126,7 @@ public final class XlsxWriter {
             wb.write(out);
             return new ExportResult(rows, truncated, sheets);
         } finally {
-            wb.dispose();
-            wb.close();
+            wb.close(); // also deletes the temporary sheet files
         }
     }
 

@@ -113,6 +113,7 @@ class JdbcExportModelTest {
     }
 
     @Test
+    @SuppressWarnings("try") // the result set is closed on purpose to provoke the error
     void sqlErrorsSurfaceAsIoExceptionWithColumnContext() throws Exception {
         exec("create table t (id int)");
         exec("insert into t values (1)");
