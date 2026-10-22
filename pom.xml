@@ -6,7 +6,7 @@
 
   <groupId>dev.quickexport</groupId>
   <artifactId>sqldeveloper-quick-export-parent</artifactId>
-  <version>0.1.0</version>
+  <version>0.2.0</version>
   <packaging>pom</packaging>
   <name>SQL Developer Quick Export (parent)</name>
   <description>Exports a SQL Developer query result grid to CSV or XLSX. Not affiliated with Oracle.</description>

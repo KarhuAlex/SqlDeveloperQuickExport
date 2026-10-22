@@ -7,7 +7,7 @@
   <parent>
     <groupId>dev.quickexport</groupId>
     <artifactId>sqldeveloper-quick-export-parent</artifactId>
-    <version>0.1.0</version>
+    <version>0.2.0</version>
   </parent>
 
   <artifactId>quick-export-sqldeveloper</artifactId>
@@ -24,7 +24,7 @@
     <sqldev.home>${env.SQLDEV_HOME}</sqldev.home>
 
     <!-- SQL Developer wants a purely numeric extension version (no -SNAPSHOT). -->
-    <extension.version>0.1.0</extension.version>
+    <extension.version>0.2.0</extension.version>
     <shaded.prefix>dev.quickexport.shaded</shaded.prefix>
   </properties>
 

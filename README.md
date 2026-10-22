@@ -34,6 +34,8 @@ Tested with SQL Developer 24.3.1 on Windows. Other versions are untested.
 3. Let SQL Developer restart. The extension loads itself on that first restart and on every later start.
 4. Run a query and right-click the result grid.
 
+To update, remove the old version first (see below), then install the new zip.
+
 Don't copy the jar into `sqldeveloper/extensions` or `dropins` by hand. SQL Developer registers the
 extension that way but never starts it.
 
