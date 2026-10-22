@@ -1,7 +1,7 @@
 name: CI
 
-# Builds and tests the Oracle-independent core module. The extension module needs jars from a
-# local SQL Developer install, so it is only built when -Dsqldev.home is given.
+# Builds and tests the Oracle-independent core module. The extension module compiles against
+# jars from a local SQL Developer install, so it is only built when -Dsqldev.home is given.
 on:
   push:
     branches: [main]
@@ -10,18 +10,33 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   core:
+    name: core (${{ matrix.os }}, JDK ${{ matrix.java }})
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
     strategy:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, windows-latest]
+        java: ['17']
+        include:
+          - os: ubuntu-latest
+            java: '21'
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
-          java-version: '17'
+          java-version: ${{ matrix.java }}
           cache: maven
       - run: mvn -B -ntp verify
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: surefire-reports-${{ matrix.os }}-jdk${{ matrix.java }}
+          path: core/target/surefire-reports

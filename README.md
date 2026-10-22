@@ -1,5 +1,8 @@
 # SQL Developer Quick Export
 
+[![CI](https://github.com/KarhuAlex/SqlDeveloperQuickExport/actions/workflows/ci.yml/badge.svg)](https://github.com/KarhuAlex/SqlDeveloperQuickExport/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+
 <img width="866" height="419" alt="Preview" src="https://github.com/user-attachments/assets/217d7801-f602-4fd8-97b2-2aec63b1494e" />
 
 CSV and Excel (.xlsx) export from the Oracle SQL Developer query result grid.
